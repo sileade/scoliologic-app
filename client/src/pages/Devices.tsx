@@ -1,10 +1,10 @@
-import { AppLayout } from "@/components/AppLayout";
-import { Card, CardContent } from "@/components/ui/card";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { CorsetIcon, CalendarIcon, RefreshIcon, ShieldIcon } from "@/components/NotionIcons";
-import { AlertTriangle, Calendar, Wrench } from "lucide-react";
+import { useState, useCallback } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
+import { PullToRefresh } from '@/components/PullToRefresh';
+import { cn } from '@/lib/utils';
+import { ChevronRight, Shield, AlertTriangle, CheckCircle, ChevronLeft } from 'lucide-react';
+import { CorsetIcon } from '@/components/NotionIcons';
 
 type DeviceCategory = 'all' | 'corsets' | 'orthoses';
 
@@ -14,10 +14,11 @@ interface Device {
   name: string;
   model?: string;
   serialNumber?: string;
-  status: 'in_use' | 'manufacturing' | 'ready' | 'replaced';
+  status: 'in_use' | 'manufacturing' | 'ready' | 'warranty_ending';
   issueDate?: string;
   warrantyEndDate?: string;
   nextServiceDate?: string;
+  image: string;
 }
 
 const mockDevices: Device[] = [
@@ -31,6 +32,7 @@ const mockDevices: Device[] = [
     issueDate: '2025-10-15',
     warrantyEndDate: '2026-10-15',
     nextServiceDate: '2026-02-15',
+    image: '🦴'
   },
   {
     id: '2',
@@ -38,6 +40,7 @@ const mockDevices: Device[] = [
     name: 'Новый корсет',
     model: 'Cheneau 3D',
     status: 'manufacturing',
+    image: '⏳'
   },
   {
     id: '3',
@@ -45,16 +48,27 @@ const mockDevices: Device[] = [
     name: 'Ортез голеностопный',
     model: 'AFO-Light',
     serialNumber: 'OB-2025-005678',
-    status: 'in_use',
+    status: 'warranty_ending',
     issueDate: '2025-11-20',
-    warrantyEndDate: '2026-11-20',
+    warrantyEndDate: '2026-02-20',
+    image: '👟'
   },
 ];
 
 export default function Devices() {
   const { t, language } = useLanguage();
   const [activeCategory, setActiveCategory] = useState<DeviceCategory>('all');
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+
+  // Haptic feedback
+  const haptic = (intensity: number = 10) => {
+    if (navigator.vibrate) navigator.vibrate(intensity);
+  };
+
+  // Pull to refresh
+  const handleRefresh = useCallback(async () => {
+    await new Promise(resolve => setTimeout(resolve, 1500));
+  }, []);
 
   const categories = [
     { id: 'all' as const, label: language === 'ru' ? 'Все' : 'All' },
@@ -68,23 +82,6 @@ export default function Devices() {
     return device.type === 'orthosis';
   });
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsRefreshing(false);
-  };
-
-  const getStatusBadge = (status: Device['status']) => {
-    const config = {
-      in_use: { label: language === 'ru' ? 'Используется' : 'In Use', color: 'bg-green-100 text-green-700' },
-      manufacturing: { label: language === 'ru' ? 'Изготовление' : 'Manufacturing', color: 'bg-purple-100 text-purple-700' },
-      ready: { label: language === 'ru' ? 'Готов' : 'Ready', color: 'bg-accent/20 text-accent' },
-      replaced: { label: language === 'ru' ? 'Заменён' : 'Replaced', color: 'bg-gray-100 text-gray-600' },
-    };
-    const c = config[status];
-    return <span className={cn("px-2 py-1 rounded-lg text-xs font-medium", c.color)}>{c.label}</span>;
-  };
-
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', {
@@ -92,134 +89,291 @@ export default function Devices() {
     });
   };
 
-  const isServiceSoon = (date?: string) => {
-    if (!date) return false;
-    const days = Math.ceil((new Date(date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    return days > 0 && days <= 14;
+  const getStatusInfo = (status: Device['status']) => {
+    switch (status) {
+      case 'in_use':
+        return {
+          label: language === 'ru' ? 'Используется' : 'In Use',
+          color: 'bg-green-100 text-green-700',
+          icon: CheckCircle
+        };
+      case 'manufacturing':
+        return {
+          label: language === 'ru' ? 'Изготовление' : 'Manufacturing',
+          color: 'bg-purple-100 text-purple-700',
+          icon: null
+        };
+      case 'ready':
+        return {
+          label: language === 'ru' ? 'Готов' : 'Ready',
+          color: 'bg-teal-100 text-teal-700',
+          icon: CheckCircle
+        };
+      case 'warranty_ending':
+        return {
+          label: language === 'ru' ? 'Гарантия заканчивается' : 'Warranty ending',
+          color: 'bg-orange-100 text-orange-700',
+          icon: AlertTriangle
+        };
+    }
   };
 
-  return (
-    <AppLayout title={t("devices.title")}>
-      <div className="px-4 py-6 lg:px-8 space-y-5 max-w-3xl mx-auto">
+  // Device detail view
+  if (selectedDevice) {
+    const statusInfo = getStatusInfo(selectedDevice.status);
+    const StatusIcon = statusInfo.icon;
+
+    return (
+      <div className="mobile-page">
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">{t("devices.title")}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{t("devices.subtitle")}</p>
-          </div>
+        <header className="mobile-header">
           <button 
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className={cn("btn-scolio-outline flex items-center gap-2 text-sm py-2 px-3", isRefreshing && "opacity-50")}
+            className="btn-icon -ml-2"
+            onClick={() => {
+              haptic();
+              setSelectedDevice(null);
+            }}
           >
-            <RefreshIcon size={16} className={cn(isRefreshing && "animate-spin")} />
-            {language === 'ru' ? 'Обновить' : 'Refresh'}
+            <ChevronLeft size={24} />
           </button>
+          <h1 className="mobile-header-title ml-2">{selectedDevice.name}</h1>
+        </header>
+
+        <div className="mobile-content">
+          {/* Device Card */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm mb-4">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-20 h-20 rounded-2xl bg-teal-100 flex items-center justify-center text-4xl">
+                {selectedDevice.image}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-foreground">{selectedDevice.name}</h2>
+                {selectedDevice.model && (
+                  <p className="text-sm text-muted-foreground">{selectedDevice.model}</p>
+                )}
+                <div className={cn(
+                  "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium mt-2",
+                  statusInfo.color
+                )}>
+                  {StatusIcon && <StatusIcon size={12} />}
+                  {statusInfo.label}
+                </div>
+              </div>
+            </div>
+
+            {/* Info Grid */}
+            {selectedDevice.status !== 'manufacturing' && (
+              <div className="space-y-4">
+                {selectedDevice.serialNumber && (
+                  <div className="flex items-center justify-between py-3 border-b">
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <span className="text-lg">📋</span>
+                      <span className="text-sm">{language === 'ru' ? 'Серийный номер' : 'Serial'}</span>
+                    </div>
+                    <span className="font-mono text-sm">{selectedDevice.serialNumber}</span>
+                  </div>
+                )}
+
+                {selectedDevice.issueDate && (
+                  <div className="flex items-center justify-between py-3 border-b">
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <span className="text-lg">📅</span>
+                      <span className="text-sm">{language === 'ru' ? 'Дата выдачи' : 'Issue date'}</span>
+                    </div>
+                    <span className="text-sm font-medium">{formatDate(selectedDevice.issueDate)}</span>
+                  </div>
+                )}
+
+                {selectedDevice.warrantyEndDate && (
+                  <div className="flex items-center justify-between py-3 border-b">
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <Shield size={18} />
+                      <span className="text-sm">{language === 'ru' ? 'Гарантия до' : 'Warranty until'}</span>
+                    </div>
+                    <span className={cn(
+                      "text-sm font-medium",
+                      selectedDevice.status === 'warranty_ending' && "text-orange-600"
+                    )}>
+                      {formatDate(selectedDevice.warrantyEndDate)}
+                    </span>
+                  </div>
+                )}
+
+                {selectedDevice.nextServiceDate && (
+                  <div className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <span className="text-lg">🔧</span>
+                      <span className="text-sm">{language === 'ru' ? 'Следующее ТО' : 'Next service'}</span>
+                    </div>
+                    <span className="text-sm font-medium text-teal-600">{formatDate(selectedDevice.nextServiceDate)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {selectedDevice.status === 'manufacturing' && (
+              <div className="flex items-center justify-center gap-3 py-8 text-purple-600">
+                <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                <span className="font-medium">{language === 'ru' ? 'В процессе изготовления' : 'Being manufactured'}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="space-y-3">
+            <button 
+              className="w-full mobile-card card-interactive flex items-center justify-between"
+              onClick={() => haptic()}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-xl">📞</span>
+                <span className="font-medium">{language === 'ru' ? 'Связаться с производителем' : 'Contact manufacturer'}</span>
+              </div>
+              <ChevronRight size={20} className="text-gray-300" />
+            </button>
+
+            <button 
+              className="w-full mobile-card card-interactive flex items-center justify-between"
+              onClick={() => haptic()}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-xl">📄</span>
+                <span className="font-medium">{language === 'ru' ? 'Инструкция по уходу' : 'Care instructions'}</span>
+              </div>
+              <ChevronRight size={20} className="text-gray-300" />
+            </button>
+          </div>
         </div>
 
-        {/* MIS Status */}
-        <Card className="bg-accent/5 border-accent/20">
-          <CardContent className="p-3 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-              <ShieldIcon size={16} className="text-accent" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium">{t("devices.fromMIS")}</p>
-              <p className="text-xs text-muted-foreground">
-                {language === 'ru' ? 'Синхронизировано' : 'Synced'}: {new Date().toLocaleTimeString(language === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            </div>
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          </CardContent>
-        </Card>
+        <MobileBottomNav />
+      </div>
+    );
+  }
 
-        {/* Categories */}
+  // Device list view
+  return (
+    <div className="mobile-page">
+      {/* Header */}
+      <header className="mobile-header">
+        <h1 className="mobile-header-title">{t("devices.title")}</h1>
+      </header>
+
+      {/* Categories */}
+      <div className="px-4 py-3 bg-white border-b overflow-x-auto scrollbar-hide">
         <div className="flex gap-2">
           {categories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
+              onClick={() => {
+                haptic();
+                setActiveCategory(cat.id);
+              }}
               className={cn(
-                "px-4 py-2 rounded-xl text-sm font-medium transition-all",
-                activeCategory === cat.id
-                  ? "bg-accent text-accent-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all",
+                activeCategory === cat.id 
+                  ? "bg-teal-500 text-white" 
+                  : "bg-gray-100 text-gray-600 active:bg-gray-200"
               )}
             >
               {cat.label}
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Content */}
+      <PullToRefresh onRefresh={handleRefresh} className="mobile-content has-bottom-nav">
+        {/* MIS Status */}
+        <div className="bg-teal-50 rounded-2xl p-4 mb-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center">
+            <Shield size={20} className="text-teal-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-teal-800">{t("devices.fromMIS")}</p>
+            <p className="text-xs text-teal-600">
+              {language === 'ru' ? 'Синхронизировано' : 'Synced'}: {new Date().toLocaleTimeString(language === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="bg-white rounded-2xl p-4 text-center shadow-sm">
+            <p className="text-2xl font-bold text-teal-600">{mockDevices.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {language === 'ru' ? 'Всего' : 'Total'}
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 text-center shadow-sm">
+            <p className="text-2xl font-bold text-green-500">
+              {mockDevices.filter(d => d.status === 'in_use').length}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {language === 'ru' ? 'Активных' : 'Active'}
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 text-center shadow-sm">
+            <p className="text-2xl font-bold text-purple-500">
+              {mockDevices.filter(d => d.status === 'manufacturing').length}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {language === 'ru' ? 'В работе' : 'In progress'}
+            </p>
+          </div>
+        </div>
 
         {/* Devices List */}
-        <div className="space-y-3">
-          {filteredDevices.map((device) => (
-            <Card key={device.id} className="card-interactive">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center flex-shrink-0">
-                    <CorsetIcon size={24} className="text-accent" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <h3 className="font-semibold">{device.name}</h3>
-                        {device.model && <p className="text-sm text-muted-foreground">{device.model}</p>}
-                      </div>
-                      {getStatusBadge(device.status)}
-                    </div>
-                    
-                    {device.status === 'in_use' && (
-                      <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t">
-                        {device.serialNumber && (
-                          <div>
-                            <p className="text-xs text-muted-foreground">{t("devices.serialNumber")}</p>
-                            <p className="text-sm font-medium">{device.serialNumber}</p>
-                          </div>
-                        )}
-                        {device.issueDate && (
-                          <div>
-                            <p className="text-xs text-muted-foreground">{t("devices.issueDate")}</p>
-                            <p className="text-sm font-medium">{formatDate(device.issueDate)}</p>
-                          </div>
-                        )}
-                        {device.warrantyEndDate && (
-                          <div>
-                            <p className="text-xs text-muted-foreground">{t("devices.warranty")}</p>
-                            <p className="text-sm font-medium">{formatDate(device.warrantyEndDate)}</p>
-                          </div>
-                        )}
-                        {device.nextServiceDate && (
-                          <div>
-                            <p className="text-xs text-muted-foreground">{t("devices.nextService")}</p>
-                            <div className="flex items-center gap-1">
-                              {isServiceSoon(device.nextServiceDate) && (
-                                <AlertTriangle size={12} className="text-orange-500" />
-                              )}
-                              <p className={cn("text-sm font-medium", isServiceSoon(device.nextServiceDate) && "text-orange-600")}>
-                                {formatDate(device.nextServiceDate)}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+        <div className="space-y-3 mb-20">
+          {filteredDevices.map((device) => {
+            const statusInfo = getStatusInfo(device.status);
+            const StatusIcon = statusInfo.icon;
 
-                    {device.status === 'manufacturing' && (
-                      <div className="mt-3 pt-3 border-t">
-                        <div className="flex items-center gap-2 text-purple-600">
-                          <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-                          <span className="text-sm">{language === 'ru' ? 'В процессе изготовления' : 'Being manufactured'}</span>
-                        </div>
+            return (
+              <div
+                key={device.id}
+                className="mobile-card card-interactive"
+                onClick={() => {
+                  haptic();
+                  setSelectedDevice(device);
+                }}
+              >
+                <div className="flex items-center gap-4">
+                  {/* Image */}
+                  <div className="w-16 h-16 rounded-2xl bg-teal-100 flex items-center justify-center text-3xl flex-shrink-0">
+                    {device.image}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-foreground">{device.name}</h3>
+                        {device.model && (
+                          <p className="text-sm text-muted-foreground">{device.model}</p>
+                        )}
                       </div>
-                    )}
+                      <ChevronRight size={20} className="text-gray-300 flex-shrink-0 mt-1" />
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-2">
+                      <div className={cn(
+                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+                        statusInfo.color
+                      )}>
+                        {StatusIcon && <StatusIcon size={10} />}
+                        {statusInfo.label}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            );
+          })}
         </div>
-      </div>
-    </AppLayout>
+      </PullToRefresh>
+
+      <MobileBottomNav />
+    </div>
   );
 }

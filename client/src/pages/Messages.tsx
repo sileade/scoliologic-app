@@ -1,14 +1,10 @@
-import { AppLayout } from "@/components/AppLayout";
-import { Card, CardContent } from "@/components/ui/card";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { useState, useRef, useEffect } from "react";
-import { cn } from "@/lib/utils";
-import { 
-  SendIcon,
-  LockIcon,
-} from "@/components/NotionIcons";
-import { Lock, Sparkles, Bot, Check, CheckCheck, ChevronLeft, User } from "lucide-react";
-import { keyStore, generateKeyFingerprint } from "@/lib/crypto";
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
+import { SwipeableCard } from '@/components/SwipeableCard';
+import { cn } from '@/lib/utils';
+import { Lock, Sparkles, Bot, Check, CheckCheck, ChevronLeft, User } from 'lucide-react';
+import { keyStore } from '@/lib/crypto';
 
 interface Chat {
   id: string;
@@ -63,11 +59,11 @@ const mockChats: Chat[] = [
   },
   { 
     id: '3', 
-    name: 'Поддержка', 
+    name: 'AI-ассистент', 
     role: 'Scoliologic',
-    avatar: 'СП',
-    lastMessage: 'Ваш запрос обработан',
-    lastMessageTime: '15.01',
+    avatar: '✨',
+    lastMessage: 'Чем могу помочь?',
+    lastMessageTime: 'сейчас',
     unread: 0,
     online: true,
     type: 'support',
@@ -89,6 +85,12 @@ export default function Messages() {
   const [newMessage, setNewMessage] = useState('');
   const [aiTyping, setAiTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Haptic feedback
+  const haptic = (intensity: number = 10) => {
+    if (navigator.vibrate) navigator.vibrate(intensity);
+  };
 
   useEffect(() => {
     async function initKeys() {
@@ -98,7 +100,7 @@ export default function Messages() {
   }, []);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
@@ -113,30 +115,31 @@ export default function Messages() {
 
   const getAIResponse = (userMessage: string): string => {
     const lowerMessage = userMessage.toLowerCase();
-    const aiNote = language === 'ru' ? '\n\n🤖 AI-ассистент' : '\n\n🤖 AI Assistant';
     
     if (lowerMessage.includes('корсет') || lowerMessage.includes('носить')) {
-      return (language === 'ru'
+      return language === 'ru'
         ? 'Корсет следует носить 20-23 часа в сутки. Снимайте только для гигиены и упражнений.'
-        : 'Wear the corset 20-23 hours daily. Remove only for hygiene and exercises.') + aiNote;
+        : 'Wear the corset 20-23 hours daily. Remove only for hygiene and exercises.';
     }
     if (lowerMessage.includes('упражнен') || lowerMessage.includes('лфк')) {
-      return (language === 'ru'
-        ? 'Рекомендую выполнять упражнения 2 раза в день по 30 минут. Видео в разделе "Реабилитация".'
-        : 'Do exercises twice daily for 30 minutes. Videos in "Rehabilitation" section.') + aiNote;
+      return language === 'ru'
+        ? 'Рекомендую выполнять упражнения 2 раза в день по 30 минут.'
+        : 'Do exercises twice daily for 30 minutes.';
     }
     if (lowerMessage.includes('боль') || lowerMessage.includes('болит')) {
-      return (language === 'ru'
+      return language === 'ru'
         ? '⚠️ При острой боли обратитесь к врачу. Небольшой дискомфорт при адаптации — нормально.'
-        : '⚠️ For sharp pain, see a doctor. Some discomfort during adaptation is normal.') + aiNote;
+        : '⚠️ For sharp pain, see a doctor. Some discomfort during adaptation is normal.';
     }
-    return (language === 'ru'
+    return language === 'ru'
       ? 'Спасибо за вопрос. Врач ответит в ближайшее время.'
-      : 'Thank you. The doctor will reply soon.') + aiNote;
+      : 'Thank you. The doctor will reply soon.';
   };
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() || !selectedChat) return;
+    
+    haptic(25);
     
     const message: Message = {
       id: Date.now().toString(),
@@ -161,6 +164,7 @@ export default function Messages() {
       setAiTyping(true);
       setTimeout(() => {
         setAiTyping(false);
+        haptic(10);
         const aiResponse: Message = {
           id: (Date.now() + 1).toString(),
           text: getAIResponse(sentText),
@@ -174,7 +178,7 @@ export default function Messages() {
         setMessages(prev => [...prev, aiResponse]);
       }, 1500);
     }
-  };
+  }, [newMessage, selectedChat, language]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -186,109 +190,185 @@ export default function Messages() {
   const getStatusIcon = (status: Message['status'], isOwn: boolean) => {
     if (!isOwn) return null;
     switch (status) {
-      case 'read': return <CheckCheck size={14} className="text-accent" />;
-      case 'delivered': return <CheckCheck size={14} />;
-      case 'sent': return <Check size={14} />;
-      default: return <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />;
+      case 'read': return <CheckCheck size={14} className="text-white/70" />;
+      case 'delivered': return <CheckCheck size={14} className="text-white/50" />;
+      case 'sent': return <Check size={14} className="text-white/50" />;
+      default: return <span className="w-3 h-3 border-2 border-white/50 border-t-transparent rounded-full animate-spin" />;
     }
   };
 
   // Chat List View
-  const ChatList = () => (
-    <div className="flex-1 overflow-y-auto">
-      {mockChats.map((chat) => (
-        <button
-          key={chat.id}
-          onClick={() => setSelectedChat(chat)}
-          className="w-full p-4 flex items-center gap-3 hover:bg-muted/50 transition-colors border-b"
-        >
-          <div className="relative">
-            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center font-semibold text-accent">
-              {chat.avatar}
-            </div>
-            {chat.online && (
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0 text-left">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold truncate">{chat.name}</span>
-              <span className="text-xs text-muted-foreground">{chat.lastMessageTime}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              {chat.aiActive && <Bot size={12} className="text-purple-500 flex-shrink-0" />}
-              <p className="text-sm text-muted-foreground truncate">{chat.lastMessage}</p>
+  if (!selectedChat) {
+    return (
+      <div className="mobile-page">
+        {/* Header */}
+        <header className="mobile-header">
+          <div>
+            <h1 className="mobile-header-title">
+              {language === 'ru' ? 'Сообщения' : 'Messages'}
+            </h1>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+              <Lock size={10} />
+              <span>{language === 'ru' ? 'Сквозное шифрование' : 'E2E encrypted'}</span>
             </div>
           </div>
-          {chat.unread > 0 && (
-            <span className="w-5 h-5 rounded-full bg-accent text-accent-foreground text-xs flex items-center justify-center font-medium">
-              {chat.unread}
-            </span>
-          )}
-        </button>
-      ))}
-    </div>
-  );
+        </header>
+
+        {/* Chat List */}
+        <div className="mobile-content has-bottom-nav">
+          <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
+            {mockChats.map((chat, index) => (
+              <SwipeableCard
+                key={chat.id}
+                onSwipeLeft={() => {
+                  haptic(25);
+                  // Archive action
+                }}
+                leftAction={
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                }
+              >
+                <button
+                  onClick={() => {
+                    haptic();
+                    setSelectedChat(chat);
+                  }}
+                  className={cn(
+                    "w-full mobile-list-item",
+                    index === mockChats.length - 1 && "border-b-0"
+                  )}
+                >
+                  {/* Avatar */}
+                  <div className="relative flex-shrink-0">
+                    <div className={cn(
+                      "w-12 h-12 rounded-full flex items-center justify-center font-semibold text-lg",
+                      chat.avatar === '✨' 
+                        ? "bg-gradient-to-br from-purple-500 to-purple-600 text-white"
+                        : "bg-teal-100 text-teal-700"
+                    )}>
+                      {chat.avatar}
+                    </div>
+                    {chat.online && (
+                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 ml-3 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-foreground truncate flex items-center gap-1">
+                        {chat.name}
+                        {chat.aiActive && chat.avatar !== '✨' && (
+                          <Bot size={14} className="text-purple-500" />
+                        )}
+                      </span>
+                      <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">
+                        {chat.lastMessageTime}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <p className="text-sm text-muted-foreground truncate pr-2">
+                        {chat.lastMessage}
+                      </p>
+                      {chat.unread > 0 && (
+                        <span className="w-5 h-5 bg-teal-500 text-white text-xs font-bold rounded-full flex items-center justify-center flex-shrink-0">
+                          {chat.unread}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              </SwipeableCard>
+            ))}
+          </div>
+        </div>
+
+        <MobileBottomNav />
+      </div>
+    );
+  }
 
   // Chat View
-  const ChatView = () => (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 border-b flex items-center gap-3">
-        <button onClick={() => setSelectedChat(null)} className="lg:hidden">
-          <ChevronLeft size={24} />
-        </button>
-        <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center font-semibold text-accent">
-          {selectedChat?.avatar}
-        </div>
-        <div className="flex-1">
-          <p className="font-semibold">{selectedChat?.name}</p>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>{selectedChat?.role}</span>
-            {selectedChat?.aiActive && (
-              <>
-                <span>•</span>
-                <span className="text-purple-500 flex items-center gap-1">
-                  <Bot size={12} /> AI
-                </span>
-              </>
+  return (
+    <div className="chat-container bg-gray-50">
+      {/* Chat Header */}
+      <header className="mobile-header bg-white">
+        <div className="flex items-center gap-3">
+          <button 
+            className="btn-icon -ml-2"
+            onClick={() => {
+              haptic();
+              setSelectedChat(null);
+            }}
+          >
+            <ChevronLeft size={24} />
+          </button>
+          
+          <div className="relative flex-shrink-0">
+            <div className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center font-semibold",
+              selectedChat.avatar === '✨'
+                ? "bg-gradient-to-br from-purple-500 to-purple-600 text-white text-lg"
+                : "bg-teal-100 text-teal-700"
+            )}>
+              {selectedChat.avatar}
+            </div>
+            {selectedChat.online && (
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white" />
             )}
           </div>
+          
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground truncate">{selectedChat.name}</p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>{selectedChat.role}</span>
+              {selectedChat.aiActive && (
+                <>
+                  <span>•</span>
+                  <span className="text-purple-500 flex items-center gap-0.5">
+                    <Sparkles size={10} /> AI
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-1 text-xs text-teal-600 bg-teal-50 px-2 py-1 rounded-full">
+            <Lock size={10} />
+            <span>E2EE</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1 text-xs text-accent">
-          <Lock size={12} />
-          <span>E2EE</span>
-        </div>
-      </div>
+      </header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/20">
+      <div className="chat-messages">
         {messages.map((message) => (
-          <div key={message.id} className={cn("flex", message.isOwn ? "justify-end" : "justify-start")}>
+          <div 
+            key={message.id} 
+            className={cn("flex mb-2", message.isOwn ? "justify-end" : "justify-start")}
+          >
             <div className={cn(
-              "max-w-[85%] rounded-2xl px-4 py-2",
-              message.isOwn
-                ? "bg-accent text-accent-foreground rounded-br-sm"
-                : message.isAI
-                  ? "bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-bl-sm"
-                  : "bg-card border rounded-bl-sm"
+              "chat-bubble",
+              message.isOwn ? "sent" : message.isAI ? "ai" : "received"
             )}>
               {!message.isOwn && message.isAI && (
-                <div className="flex items-center gap-1 mb-1 text-purple-600 dark:text-purple-400">
+                <div className="flex items-center gap-1 mb-1 text-white/80">
                   <Sparkles size={10} />
-                  <span className="text-[10px] font-medium">AI</span>
+                  <span className="text-[10px] font-medium">AI-ассистент</span>
                 </div>
               )}
               {!message.isOwn && !message.isAI && message.senderName && (
-                <div className="flex items-center gap-1 mb-1 text-accent">
+                <div className="flex items-center gap-1 mb-1 text-teal-600">
                   <User size={10} />
                   <span className="text-[10px] font-medium">{message.senderName}</span>
                 </div>
               )}
-              <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+              <p className="text-[15px] leading-relaxed">{message.text}</p>
               <div className={cn(
                 "flex items-center justify-end gap-1 mt-1",
-                message.isOwn ? "text-accent-foreground/60" : "text-muted-foreground"
+                message.isOwn ? "text-white/60" : "text-muted-foreground"
               )}>
                 <span className="text-[10px]">{message.time}</span>
                 {getStatusIcon(message.status, message.isOwn)}
@@ -298,14 +378,14 @@ export default function Messages() {
         ))}
 
         {aiTyping && (
-          <div className="flex justify-start">
-            <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl rounded-bl-sm px-4 py-2">
+          <div className="flex justify-start mb-2">
+            <div className="chat-bubble ai">
               <div className="flex items-center gap-2">
-                <Sparkles size={10} className="text-purple-500" />
+                <Sparkles size={10} className="text-white/80" />
                 <div className="flex gap-1">
-                  <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <span className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -315,72 +395,26 @@ export default function Messages() {
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t bg-card">
-        <div className="flex items-center gap-2">
-          <input
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder={language === 'ru' ? 'Сообщение...' : 'Message...'}
-            className="flex-1 px-4 py-2.5 rounded-full bg-muted border-0 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-          />
-          <button 
-            onClick={handleSendMessage}
-            disabled={!newMessage.trim()}
-            className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center transition-all",
-              newMessage.trim()
-                ? "bg-accent text-accent-foreground"
-                : "bg-muted text-muted-foreground"
-            )}
-          >
-            <SendIcon size={18} />
-          </button>
-        </div>
+      <div className="chat-input-container">
+        <input
+          ref={inputRef}
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder={language === 'ru' ? 'Сообщение...' : 'Message...'}
+          className="chat-input"
+        />
+        <button
+          onClick={handleSendMessage}
+          disabled={!newMessage.trim()}
+          className="chat-send-btn"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+        </button>
       </div>
     </div>
-  );
-
-  return (
-    <AppLayout title={t("messages.title")}>
-      <div className="h-[calc(100vh-8rem)] lg:h-[calc(100vh-4rem)] flex">
-        {/* Chat List - hidden on mobile when chat selected */}
-        <Card className={cn(
-          "flex-1 lg:flex-none lg:w-80 border-r flex flex-col",
-          selectedChat && "hidden lg:flex"
-        )}>
-          {/* Header */}
-          <div className="p-4 border-b">
-            <h1 className="text-xl font-bold">{t("messages.title")}</h1>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-              <Lock size={10} />
-              <span>{language === 'ru' ? 'Сквозное шифрование' : 'End-to-end encrypted'}</span>
-            </div>
-          </div>
-          <ChatList />
-        </Card>
-
-        {/* Chat View */}
-        {selectedChat ? (
-          <Card className={cn("flex-1 flex flex-col", !selectedChat && "hidden lg:flex")}>
-            <ChatView />
-          </Card>
-        ) : (
-          <Card className="flex-1 hidden lg:flex items-center justify-center">
-            <div className="text-center p-8">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                <Lock size={24} className="text-muted-foreground" />
-              </div>
-              <p className="font-semibold mb-1">
-                {language === 'ru' ? 'Выберите чат' : 'Select a chat'}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {language === 'ru' ? 'Все сообщения зашифрованы' : 'All messages are encrypted'}
-              </p>
-            </div>
-          </Card>
-        )}
-      </div>
-    </AppLayout>
   );
 }

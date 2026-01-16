@@ -21,8 +21,7 @@
 
 :root {
   /* Scoliologic.ru Color Scheme */
-  /* Primary: Lime Green (#BFFF00), Accent: Teal/Cyan (#2DBDB6) */
-  --background: 0 0% 100%;
+  --background: 0 0% 97%;
   --foreground: 220 20% 15%;
   
   --card: 0 0% 100%;
@@ -32,7 +31,7 @@
   --popover: 0 0% 100%;
   --popover-foreground: 220 20% 15%;
   
-  /* Primary Lime - яркий лаймовый для кнопок и акцентов */
+  /* Primary Lime */
   --primary: 75 100% 50%;
   --primary-foreground: 220 20% 15%;
   
@@ -43,7 +42,7 @@
   --muted: 174 20% 96%;
   --muted-foreground: 220 9% 46%;
   
-  /* Accent - Teal/Бирюзовый для карточек и уведомлений */
+  /* Accent - Teal */
   --accent: 174 56% 46%;
   --accent-foreground: 0 0% 100%;
   
@@ -54,21 +53,18 @@
   --input: 220 13% 91%;
   --ring: 75 100% 50%;
   
-  /* Success green */
   --success: 160 84% 39%;
   --success-foreground: 0 0% 100%;
   
-  /* Warning orange - оранжевый как на сайте */
   --warning: 30 100% 65%;
   --warning-foreground: 220 20% 15%;
   
-  /* Info - бирюзовый */
   --info: 174 56% 46%;
   --info-foreground: 0 0% 100%;
   
   --radius: 1rem;
   
-  /* Sidebar - Teal/Бирюзовый theme */
+  /* Sidebar */
   --sidebar-background: 174 56% 46%;
   --sidebar-foreground: 0 0% 100%;
   --sidebar-primary: 0 0% 100%;
@@ -78,7 +74,7 @@
   --sidebar-border: 174 56% 40%;
   --sidebar-ring: 0 0% 100%;
   
-  /* Scoliologic specific colors */
+  /* Scoliologic specific */
   --scolio-lime: 75 100% 50%;
   --scolio-teal: 174 56% 46%;
   --scolio-orange: 30 100% 68%;
@@ -96,7 +92,6 @@
   --popover: 220 20% 14%;
   --popover-foreground: 210 40% 98%;
   
-  /* Primary Lime - для тёмной темы */
   --primary: 75 100% 45%;
   --primary-foreground: 220 20% 10%;
   
@@ -106,7 +101,6 @@
   --muted: 220 20% 17%;
   --muted-foreground: 220 20% 65%;
   
-  /* Accent - Teal для тёмной темы */
   --accent: 174 56% 50%;
   --accent-foreground: 0 0% 100%;
   
@@ -117,7 +111,6 @@
   --input: 220 20% 25%;
   --ring: 75 100% 45%;
   
-  /* Sidebar - Dark mode */
   --sidebar-background: 220 20% 10%;
   --sidebar-foreground: 210 40% 98%;
   --sidebar-primary: 75 100% 45%;
@@ -160,150 +153,387 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
 }
 
+/* ============================================
+   MOBILE-FIRST BASE STYLES
+   ============================================ */
 @layer base {
   * {
     @apply border-border;
+    -webkit-tap-highlight-color: transparent;
   }
+  
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    /* Предотвращаем масштабирование при фокусе на input */
+    touch-action: manipulation;
+  }
+  
   body {
     @apply bg-background text-foreground font-sans antialiased;
-  }
-}
-
-@layer utilities {
-  .container {
-    margin-inline: auto;
-    padding-inline: 1rem;
-    @media (width >= 640px) {
-      padding-inline: 2rem;
-    }
-  }
-}
-
-/* Mobile-first styles */
-@layer base {
-  html {
-    -webkit-tap-highlight-color: transparent;
-    scroll-behavior: smooth;
-  }
-  
-  body {
+    /* Safe area для iPhone с notch */
+    padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    /* Предотвращаем overscroll на iOS */
+    overscroll-behavior: none;
+    /* Минимальная высота для мобильных */
+    min-height: 100dvh;
   }
   
-  .mobile-nav {
+  /* Отключаем выделение для интерактивных элементов */
+  button, a, [role="button"] {
     -webkit-user-select: none;
     user-select: none;
   }
+  
+  /* Увеличиваем размер шрифта для input на iOS чтобы избежать зума */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ============================================
+   SAFE AREA UTILITIES
+   ============================================ */
+@layer utilities {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  .safe-area-inset {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: hsl(var(--accent) / 0.5);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--accent) / 0.7);
-}
-
-/* Scoliologic Button Styles */
+/* ============================================
+   TOUCH-FRIENDLY COMPONENTS
+   ============================================ */
 @layer components {
+  /* Минимальный размер touch target (48x48) */
   .touch-target {
     min-height: 48px;
     min-width: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
+  /* Touch manipulation для предотвращения задержки */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  /* Active state для touch */
+  .touch-active {
+    @apply transition-transform duration-100;
+  }
+  
+  .touch-active:active {
+    transform: scale(0.97);
+  }
+  
+  /* Интерактивная карточка */
   .card-interactive {
-    @apply transition-all duration-200 active:scale-[0.98] cursor-pointer;
+    @apply transition-all duration-150 cursor-pointer;
+    touch-action: manipulation;
   }
   
-  .card-interactive:hover {
-    @apply shadow-lg;
+  .card-interactive:active {
+    transform: scale(0.98);
+    opacity: 0.9;
   }
   
-  /* Scoliologic Primary Button - Lime */
+  /* Swipeable item */
+  .swipeable {
+    touch-action: pan-y;
+    will-change: transform;
+  }
+  
+  /* Pull to refresh container */
+  .pull-to-refresh {
+    overscroll-behavior-y: contain;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ============================================
+   MOBILE NAVIGATION
+   ============================================ */
+@layer components {
+  /* Bottom navigation bar */
+  .mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid hsl(var(--border));
+    padding-bottom: env(safe-area-inset-bottom);
+    z-index: 50;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    height: calc(64px + env(safe-area-inset-bottom));
+  }
+  
+  .mobile-bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 64px;
+    height: 64px;
+    color: hsl(var(--muted-foreground));
+    transition: color 0.15s ease;
+    touch-action: manipulation;
+  }
+  
+  .mobile-bottom-nav-item:active {
+    transform: scale(0.95);
+  }
+  
+  .mobile-bottom-nav-item.active {
+    color: hsl(var(--accent));
+  }
+  
+  .mobile-bottom-nav-item .icon {
+    width: 24px;
+    height: 24px;
+    margin-bottom: 2px;
+  }
+  
+  .mobile-bottom-nav-item .label {
+    font-size: 10px;
+    font-weight: 500;
+  }
+  
+  /* Content padding for bottom nav */
+  .has-bottom-nav {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom) + 16px);
+  }
+}
+
+/* ============================================
+   MOBILE PAGE LAYOUT
+   ============================================ */
+@layer components {
+  /* Mobile page container */
+  .mobile-page {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: hsl(var(--background));
+  }
+  
+  /* Mobile header */
+  .mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: white;
+    padding: 12px 16px;
+    padding-top: calc(12px + env(safe-area-inset-top));
+    border-bottom: 1px solid hsl(var(--border));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 56px;
+  }
+  
+  .mobile-header-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: hsl(var(--foreground));
+  }
+  
+  /* Mobile content */
+  .mobile-content {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Mobile card */
+  .mobile-card {
+    background: white;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* ============================================
+   GESTURE FEEDBACK
+   ============================================ */
+@layer components {
+  /* Swipe indicator */
+  .swipe-indicator {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  
+  .swipe-indicator.visible {
+    opacity: 1;
+  }
+  
+  .swipe-indicator.left {
+    right: 8px;
+    background: hsl(var(--destructive));
+    color: white;
+  }
+  
+  .swipe-indicator.right {
+    left: 8px;
+    background: hsl(var(--success));
+    color: white;
+  }
+  
+  /* Long press feedback */
+  .long-press-feedback {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .long-press-feedback::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: hsl(var(--accent) / 0.1);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .long-press-feedback.pressing::after {
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   SCOLIOLOGIC BUTTONS
+   ============================================ */
+@layer components {
   .btn-scolio-primary {
     background: hsl(var(--primary));
     color: hsl(var(--primary-foreground));
-    border-radius: 12px;
-    padding: 0.875rem 1.75rem;
+    border-radius: 14px;
+    padding: 14px 24px;
     font-weight: 600;
-    font-size: 0.9375rem;
-    transition: all 0.2s ease;
+    font-size: 16px;
+    transition: all 0.15s ease;
     border: none;
     box-shadow: 0 2px 8px hsl(var(--primary) / 0.3);
-  }
-  
-  .btn-scolio-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px hsl(var(--primary) / 0.4);
+    min-height: 52px;
+    touch-action: manipulation;
   }
   
   .btn-scolio-primary:active {
-    transform: translateY(0);
+    transform: scale(0.98);
+    box-shadow: 0 1px 4px hsl(var(--primary) / 0.3);
   }
   
-  /* Scoliologic Secondary Button - Teal */
   .btn-scolio-secondary {
     background: hsl(var(--accent));
-    color: hsl(var(--accent-foreground));
-    border-radius: 12px;
-    padding: 0.875rem 1.75rem;
+    color: white;
+    border-radius: 14px;
+    padding: 14px 24px;
     font-weight: 600;
-    font-size: 0.9375rem;
-    transition: all 0.2s ease;
+    font-size: 16px;
+    transition: all 0.15s ease;
     border: none;
+    min-height: 52px;
+    touch-action: manipulation;
   }
   
-  .btn-scolio-secondary:hover {
+  .btn-scolio-secondary:active {
+    transform: scale(0.98);
     opacity: 0.9;
-    transform: translateY(-1px);
   }
   
-  /* Scoliologic Outline Button */
   .btn-scolio-outline {
     background: transparent;
     color: hsl(var(--accent));
     border: 2px solid hsl(var(--accent));
-    border-radius: 12px;
-    padding: 0.75rem 1.5rem;
+    border-radius: 14px;
+    padding: 12px 22px;
     font-weight: 600;
-    transition: all 0.2s ease;
+    font-size: 16px;
+    transition: all 0.15s ease;
+    min-height: 52px;
+    touch-action: manipulation;
   }
   
-  .btn-scolio-outline:hover {
+  .btn-scolio-outline:active {
     background: hsl(var(--accent) / 0.1);
+    transform: scale(0.98);
+  }
+  
+  /* Icon button */
+  .btn-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: hsl(var(--muted));
+    color: hsl(var(--foreground));
+    transition: all 0.15s ease;
+    touch-action: manipulation;
+  }
+  
+  .btn-icon:active {
+    transform: scale(0.95);
+    background: hsl(var(--muted-foreground) / 0.2);
   }
 }
 
-/* Scoliologic Card Styles */
+/* ============================================
+   SCOLIOLOGIC CARDS
+   ============================================ */
 @layer components {
-  /* Main service card - like on scoliologic.ru */
   .scolio-card {
-    @apply bg-card rounded-3xl overflow-hidden transition-all duration-300;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    @apply bg-card rounded-2xl overflow-hidden;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    touch-action: manipulation;
   }
   
-  .scolio-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  .scolio-card:active {
+    transform: scale(0.99);
   }
   
-  /* Colored cards like on the main site */
   .scolio-card-lime {
     background: linear-gradient(135deg, hsl(75 70% 75%) 0%, hsl(75 80% 65%) 100%);
     color: hsl(220 20% 15%);
@@ -319,318 +549,391 @@
     color: hsl(220 20% 15%);
   }
   
-  .scolio-card-mint {
-    background: linear-gradient(135deg, hsl(174 50% 85%) 0%, hsl(174 50% 75%) 100%);
-    color: hsl(220 20% 15%);
+  /* Quick action card */
+  .quick-action-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 12px;
+    border-radius: 16px;
+    min-height: 80px;
+    touch-action: manipulation;
+    transition: all 0.15s ease;
   }
   
-  .scolio-card-beige {
-    background: linear-gradient(135deg, hsl(30 40% 85%) 0%, hsl(30 40% 75%) 100%);
-    color: hsl(220 20% 15%);
+  .quick-action-card:active {
+    transform: scale(0.95);
   }
   
-  /* Stats cards */
-  .scolio-stats-card {
-    @apply bg-card border-2 border-accent/20 rounded-2xl p-5;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  .quick-action-card .icon {
+    width: 28px;
+    height: 28px;
+    margin-bottom: 8px;
   }
   
-  .scolio-stats-card:hover {
-    @apply border-accent/40;
-  }
-  
-  /* Feature card with icon */
-  .scolio-feature-card {
-    @apply bg-card rounded-2xl p-6 transition-all duration-200;
-    border: 1px solid hsl(var(--border));
-  }
-  
-  .scolio-feature-card:hover {
-    border-color: hsl(var(--accent));
-    box-shadow: 0 4px 20px hsl(var(--accent) / 0.15);
+  .quick-action-card .label {
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
   }
 }
 
-/* Bottom navigation styles */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: hsl(var(--background));
-  border-top: 2px solid hsl(var(--accent) / 0.2);
-  padding-bottom: env(safe-area-inset-bottom);
-  z-index: 50;
-  backdrop-filter: blur(10px);
-}
-
-.page-with-nav {
-  padding-bottom: calc(85px + env(safe-area-inset-bottom));
-}
-
-/* Floating action button */
-.fab {
-  position: fixed;
-  bottom: calc(100px + env(safe-area-inset-bottom));
-  right: 20px;
-  z-index: 40;
-}
-
-.fab-button {
-  @apply rounded-full shadow-lg;
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-  width: 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 20px hsl(var(--primary) / 0.4);
-  transition: all 0.2s ease;
-}
-
-.fab-button:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 25px hsl(var(--primary) / 0.5);
-}
-
-/* Navigation item styles */
+/* ============================================
+   MOBILE LIST ITEMS
+   ============================================ */
 @layer components {
-  .nav-item {
-    @apply flex flex-col items-center justify-center py-2 px-3 rounded-xl transition-all duration-200;
-    min-width: 64px;
+  .mobile-list-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    background: white;
+    border-bottom: 1px solid hsl(var(--border) / 0.5);
+    touch-action: manipulation;
+    transition: background 0.15s ease;
   }
   
-  .nav-item.active {
-    background: hsl(var(--accent) / 0.15);
-    color: hsl(var(--accent));
-  }
-  
-  .nav-item:not(.active) {
-    color: hsl(var(--muted-foreground));
-  }
-  
-  .nav-item:hover:not(.active) {
+  .mobile-list-item:active {
     background: hsl(var(--muted));
   }
   
-  .nav-item-icon {
-    @apply w-6 h-6 mb-1;
+  .mobile-list-item:last-child {
+    border-bottom: none;
   }
   
-  .nav-item-label {
-    @apply text-xs font-medium;
+  .mobile-list-item .avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  
+  .mobile-list-item .content {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .mobile-list-item .title {
+    font-size: 16px;
+    font-weight: 500;
+    color: hsl(var(--foreground));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .mobile-list-item .subtitle {
+    font-size: 14px;
+    color: hsl(var(--muted-foreground));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .mobile-list-item .action {
+    margin-left: 12px;
+    flex-shrink: 0;
   }
 }
 
-/* Progress indicators */
+/* ============================================
+   MOBILE INPUT FIELDS
+   ============================================ */
 @layer components {
-  .progress-scolio {
-    @apply bg-muted rounded-full overflow-hidden h-3;
+  .mobile-input {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 16px;
+    border: 2px solid hsl(var(--border));
+    border-radius: 14px;
+    background: white;
+    color: hsl(var(--foreground));
+    transition: border-color 0.15s ease;
+    -webkit-appearance: none;
   }
   
-  .progress-scolio-bar {
-    @apply h-full rounded-full transition-all duration-500;
-    background: linear-gradient(90deg, hsl(var(--accent)) 0%, hsl(var(--primary)) 100%);
-  }
-}
-
-/* Badge styles */
-@layer components {
-  .badge-scolio {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
-  }
-  
-  .badge-scolio-lime {
-    background: hsl(var(--primary) / 0.2);
-    color: hsl(75 100% 35%);
-  }
-  
-  .badge-scolio-teal {
-    background: hsl(var(--accent) / 0.2);
-    color: hsl(var(--accent));
-  }
-  
-  .badge-scolio-orange {
-    background: hsl(var(--warning) / 0.2);
-    color: hsl(30 100% 45%);
-  }
-}
-
-/* Form styles */
-@layer components {
-  .input-scolio {
-    @apply w-full px-4 py-3 rounded-xl border-2 transition-all duration-200;
-    border-color: hsl(var(--border));
-    background: hsl(var(--background));
-  }
-  
-  .input-scolio:focus {
-    border-color: hsl(var(--accent));
-    box-shadow: 0 0 0 4px hsl(var(--accent) / 0.1);
+  .mobile-input:focus {
     outline: none;
-  }
-  
-  .input-scolio::placeholder {
-    color: hsl(var(--muted-foreground));
-  }
-}
-
-/* Avatar styles */
-@layer components {
-  .avatar-scolio {
-    @apply rounded-full overflow-hidden border-2;
     border-color: hsl(var(--accent));
   }
   
-  .avatar-scolio-lg {
-    @apply w-16 h-16;
+  .mobile-input::placeholder {
+    color: hsl(var(--muted-foreground));
   }
   
-  .avatar-scolio-md {
-    @apply w-12 h-12;
+  /* Search input */
+  .mobile-search {
+    position: relative;
   }
   
-  .avatar-scolio-sm {
-    @apply w-8 h-8;
-  }
-}
-
-/* Section headers */
-@layer components {
-  .section-header {
-    @apply text-xl font-bold mb-4;
-    color: hsl(var(--foreground));
+  .mobile-search input {
+    padding-left: 44px;
+    padding-right: 44px;
   }
   
-  .section-subheader {
-    @apply text-sm font-medium mb-3;
+  .mobile-search .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    color: hsl(var(--muted-foreground));
+  }
+  
+  .mobile-search .clear-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: hsl(var(--muted-foreground));
   }
 }
 
-/* List item styles */
+/* ============================================
+   CHAT / MESSENGER MOBILE
+   ============================================ */
 @layer components {
-  .list-item-scolio {
-    @apply flex items-center p-4 rounded-xl transition-all duration-200;
-    border: 1px solid transparent;
+  .chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
   }
   
-  .list-item-scolio:hover {
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px;
+    padding-bottom: 80px;
+  }
+  
+  .chat-bubble {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    margin-bottom: 8px;
+    word-wrap: break-word;
+  }
+  
+  .chat-bubble.sent {
+    background: hsl(var(--accent));
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+  }
+  
+  .chat-bubble.received {
+    background: white;
+    color: hsl(var(--foreground));
+    margin-right: auto;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  
+  .chat-bubble.ai {
+    background: linear-gradient(135deg, #9333EA 0%, #7C3AED 100%);
+    color: white;
+    margin-right: auto;
+    border-bottom-left-radius: 4px;
+  }
+  
+  .chat-input-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid hsl(var(--border));
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .chat-input {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 16px;
+    border: 2px solid hsl(var(--border));
+    border-radius: 24px;
     background: hsl(var(--muted));
-    border-color: hsl(var(--border));
+    resize: none;
+    max-height: 120px;
   }
   
-  .list-item-scolio:active {
-    @apply scale-[0.99];
-  }
-}
-
-/* Empty state */
-@layer components {
-  .empty-state {
-    @apply flex flex-col items-center justify-center py-12 px-6 text-center;
+  .chat-input:focus {
+    outline: none;
+    border-color: hsl(var(--accent));
+    background: white;
   }
   
-  .empty-state-icon {
-    @apply w-16 h-16 mb-4;
-    color: hsl(var(--accent) / 0.5);
+  .chat-send-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: hsl(var(--accent));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    touch-action: manipulation;
+    transition: all 0.15s ease;
   }
   
-  .empty-state-title {
-    @apply text-lg font-semibold mb-2;
-    color: hsl(var(--foreground));
+  .chat-send-btn:active {
+    transform: scale(0.95);
   }
   
-  .empty-state-description {
-    @apply text-sm;
+  .chat-send-btn:disabled {
+    background: hsl(var(--muted));
     color: hsl(var(--muted-foreground));
   }
 }
 
-/* Skeleton loading */
-@layer components {
-  .skeleton-scolio {
-    @apply animate-pulse rounded-xl;
-    background: linear-gradient(90deg, hsl(var(--muted)) 0%, hsl(var(--muted) / 0.5) 50%, hsl(var(--muted)) 100%);
-    background-size: 200% 100%;
-    animation: skeleton-loading 1.5s ease-in-out infinite;
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@layer utilities {
+  /* Slide animations */
+  .slide-up {
+    animation: slideUp 0.3s ease-out;
   }
   
-  @keyframes skeleton-loading {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+  .slide-down {
+    animation: slideDown 0.3s ease-out;
+  }
+  
+  .slide-left {
+    animation: slideLeft 0.3s ease-out;
+  }
+  
+  .slide-right {
+    animation: slideRight 0.3s ease-out;
+  }
+  
+  @keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  
+  @keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  
+  @keyframes slideLeft {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  
+  @keyframes slideRight {
+    from { transform: translateX(-100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  
+  /* Fade */
+  .fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  /* Bounce */
+  .bounce-in {
+    animation: bounceIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+  
+  @keyframes bounceIn {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  
+  /* Pulse for notifications */
+  .pulse {
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
   }
 }
 
-/* Notification dot */
-@layer components {
-  .notification-dot {
-    @apply absolute w-3 h-3 rounded-full;
-    background: hsl(var(--destructive));
-    top: -2px;
-    right: -2px;
-    border: 2px solid hsl(var(--background));
+/* ============================================
+   SCROLLBAR (hidden on mobile)
+   ============================================ */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  
+  * {
+    scrollbar-width: none;
   }
 }
 
-/* Divider */
-@layer components {
-  .divider-scolio {
-    @apply w-full h-px my-4;
-    background: linear-gradient(90deg, transparent 0%, hsl(var(--border)) 50%, transparent 100%);
+@media (min-width: 769px) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--accent) / 0.5);
+    border-radius: 3px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--accent) / 0.7);
   }
 }
 
-/* Apply enhanced borders to shadcn Card component */
-[data-slot="card"] {
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+/* ============================================
+   RESPONSIVE BREAKPOINTS
+   ============================================ */
+/* Hide desktop sidebar on mobile */
+@media (max-width: 768px) {
+  .desktop-sidebar {
+    display: none !important;
+  }
+  
+  .mobile-only {
+    display: block !important;
+  }
+  
+  .desktop-only {
+    display: none !important;
+  }
 }
 
-/* Better button visibility */
-button[data-variant="outline"] {
-  border-color: hsl(var(--accent) / 0.3);
+@media (min-width: 769px) {
+  .mobile-only {
+    display: none !important;
+  }
+  
+  .desktop-only {
+    display: block !important;
+  }
+  
+  .mobile-bottom-nav {
+    display: none !important;
+  }
 }
-
-button[data-variant="outline"]:hover {
-  border-color: hsl(var(--accent));
-  background: hsl(var(--accent) / 0.05);
-}
-
-/* Table styles */
-thead tr {
-  background: hsl(var(--accent) / 0.1);
-}
-
-/* Form inputs focus states */
-input:focus, select:focus, textarea:focus {
-  box-shadow: 0 0 0 3px hsl(var(--accent) / 0.15);
-}
-
-/* Animations */
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slide-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fade-in {
-  animation: fade-in 0.3s ease-out forwards;
-}
-
-.animate-slide-up {
-  animation: slide-up 0.4s ease-out forwards;
-}
-
-/* Staggered animation for lists */
-.stagger-item:nth-child(1) { animation-delay: 0.05s; }
-.stagger-item:nth-child(2) { animation-delay: 0.1s; }
-.stagger-item:nth-child(3) { animation-delay: 0.15s; }
-.stagger-item:nth-child(4) { animation-delay: 0.2s; }
-.stagger-item:nth-child(5) { animation-delay: 0.25s; }
