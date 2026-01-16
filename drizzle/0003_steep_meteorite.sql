@@ -1,0 +1,19 @@
+CREATE INDEX `idx_achievements_patientId` ON `achievements` (`patientId`);--> statement-breakpoint
+CREATE INDEX `idx_appointments_patientId` ON `appointments` (`patientId`);--> statement-breakpoint
+CREATE INDEX `idx_appointments_scheduledAt` ON `appointments` (`scheduledAt`);--> statement-breakpoint
+CREATE INDEX `idx_appointments_status` ON `appointments` (`status`);--> statement-breakpoint
+CREATE INDEX `idx_articles_category` ON `articles` (`category`);--> statement-breakpoint
+CREATE INDEX `idx_articles_type` ON `articles` (`type`);--> statement-breakpoint
+CREATE INDEX `idx_notifications_userId` ON `notifications` (`userId`);--> statement-breakpoint
+CREATE INDEX `idx_notifications_read` ON `notifications` (`read`);--> statement-breakpoint
+CREATE INDEX `idx_patients_userId` ON `patients` (`userId`);--> statement-breakpoint
+CREATE INDEX `idx_patients_status` ON `patients` (`status`);--> statement-breakpoint
+CREATE INDEX `idx_prostheses_patientId` ON `prostheses` (`patientId`);--> statement-breakpoint
+CREATE INDEX `idx_rehabPhases_planId` ON `rehabilitationPhases` (`planId`);--> statement-breakpoint
+CREATE INDEX `idx_rehabPlans_patientId` ON `rehabilitationPlans` (`patientId`);--> statement-breakpoint
+CREATE INDEX `idx_rehabPlans_status` ON `rehabilitationPlans` (`status`);--> statement-breakpoint
+CREATE INDEX `idx_serviceRequests_patientId` ON `serviceRequests` (`patientId`);--> statement-breakpoint
+CREATE INDEX `idx_serviceRequests_status` ON `serviceRequests` (`status`);--> statement-breakpoint
+CREATE INDEX `idx_tasks_patientId` ON `tasks` (`patientId`);--> statement-breakpoint
+CREATE INDEX `idx_tasks_scheduledDate` ON `tasks` (`scheduledDate`);--> statement-breakpoint
+CREATE INDEX `idx_tasks_phaseId` ON `tasks` (`phaseId`);

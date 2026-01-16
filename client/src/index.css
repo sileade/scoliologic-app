@@ -1,0 +1,386 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/npm/geist@1.4.1/dist/fonts/geist-sans/Geist-Variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/npm/geist@1.4.1/dist/fonts/geist-mono/GeistMono-Variable.woff2") format("woff2");
+}
+
+:root {
+  /* Ortho Innovations Color Scheme - Purple & Mint (per requirements) */
+  /* Primary: Calm Purple (#7C3AED), Accent: Mint Green (#10B981) */
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  
+  --card: 0 0% 100%;
+  --card-border: 174 72% 56%;
+  --card-foreground: 222 47% 11%;
+  
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  
+  /* Primary Purple - calm tones for buttons, links, branding */
+  --primary: 263 70% 58%;
+  --primary-foreground: 0 0% 100%;
+  
+  /* Secondary - Light purple */
+  --secondary: 263 50% 95%;
+  --secondary-foreground: 263 70% 45%;
+  
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
+  
+  /* Accent - Mint Green for notifications and cards */
+  --accent: 160 84% 39%;
+  --accent-foreground: 0 0% 100%;
+  
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  
+  --border: 174 72% 56%;
+  --input: 220 13% 91%;
+  --ring: 263 70% 58%;
+  
+  /* Success green for notifications */
+  --success: 160 84% 39%;
+  --success-foreground: 0 0% 100%;
+  
+  /* Warning orange */
+  --warning: 38 92% 50%;
+  --warning-foreground: 0 0% 100%;
+  
+  --radius: 0.75rem;
+  
+  /* Sidebar - Purple theme */
+  --sidebar-background: 263 70% 58%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-primary: 0 0% 100%;
+  --sidebar-primary-foreground: 263 70% 58%;
+  --sidebar-accent: 263 70% 65%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 263 70% 50%;
+  --sidebar-ring: 0 0% 100%;
+}
+
+.dark {
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  
+  --card: 222 47% 15%;
+  --card-foreground: 210 40% 98%;
+  
+  --popover: 222 47% 15%;
+  --popover-foreground: 210 40% 98%;
+  
+  /* Primary Purple - darker variant for dark mode */
+  --primary: 263 70% 65%;
+  --primary-foreground: 0 0% 100%;
+  
+  --secondary: 263 33% 20%;
+  --secondary-foreground: 210 40% 98%;
+  
+  --muted: 220 33% 17%;
+  --muted-foreground: 220 20% 65%;
+  
+  /* Accent - Mint Green */
+  --accent: 160 84% 45%;
+  --accent-foreground: 0 0% 100%;
+  
+  --destructive: 0 62% 30%;
+  --destructive-foreground: 0 0% 98%;
+  
+  --border: 220 33% 25%;
+  --input: 220 33% 25%;
+  --ring: 263 70% 65%;
+  
+  /* Sidebar - Dark mode with purple accent */
+  --sidebar-background: 222 47% 11%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-primary: 263 70% 65%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 263 33% 20%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 220 33% 25%;
+  --sidebar-ring: 263 70% 65%;
+}
+
+@theme inline {
+  --color-background: oklch(from hsl(var(--background)) l c h);
+  --color-foreground: oklch(from hsl(var(--foreground)) l c h);
+  --color-card: oklch(from hsl(var(--card)) l c h);
+  --color-card-foreground: oklch(from hsl(var(--card-foreground)) l c h);
+  --color-popover: oklch(from hsl(var(--popover)) l c h);
+  --color-popover-foreground: oklch(from hsl(var(--popover-foreground)) l c h);
+  --color-primary: oklch(from hsl(var(--primary)) l c h);
+  --color-primary-foreground: oklch(from hsl(var(--primary-foreground)) l c h);
+  --color-secondary: oklch(from hsl(var(--secondary)) l c h);
+  --color-secondary-foreground: oklch(from hsl(var(--secondary-foreground)) l c h);
+  --color-muted: oklch(from hsl(var(--muted)) l c h);
+  --color-muted-foreground: oklch(from hsl(var(--muted-foreground)) l c h);
+  --color-accent: oklch(from hsl(var(--accent)) l c h);
+  --color-accent-foreground: oklch(from hsl(var(--accent-foreground)) l c h);
+  --color-destructive: oklch(from hsl(var(--destructive)) l c h);
+  --color-destructive-foreground: oklch(from hsl(var(--destructive-foreground)) l c h);
+  --color-border: oklch(from hsl(var(--border)) l c h);
+  --color-input: oklch(from hsl(var(--input)) l c h);
+  --color-ring: oklch(from hsl(var(--ring)) l c h);
+  --color-sidebar-background: oklch(from hsl(var(--sidebar-background)) l c h);
+  --color-sidebar-foreground: oklch(from hsl(var(--sidebar-foreground)) l c h);
+  --color-sidebar-primary: oklch(from hsl(var(--sidebar-primary)) l c h);
+  --color-sidebar-primary-foreground: oklch(from hsl(var(--sidebar-primary-foreground)) l c h);
+  --color-sidebar-accent: oklch(from hsl(var(--sidebar-accent)) l c h);
+  --color-sidebar-accent-foreground: oklch(from hsl(var(--sidebar-accent-foreground)) l c h);
+  --color-sidebar-border: oklch(from hsl(var(--sidebar-border)) l c h);
+  --color-sidebar-ring: oklch(from hsl(var(--sidebar-ring)) l c h);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .container {
+    margin-inline: auto;
+    padding-inline: 1rem;
+    @media (width >= 640px) {
+      padding-inline: 2rem;
+    }
+  }
+}
+
+/* Mobile-first styles */
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+  
+  /* Safe area insets for mobile devices */
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Prevent text selection on mobile nav */
+  .mobile-nav {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Custom scrollbar for mobile feel */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+/* Touch-friendly button states */
+@layer components {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .card-interactive {
+    @apply transition-all duration-200 active:scale-[0.98] cursor-pointer;
+  }
+  
+  .card-interactive:hover {
+    @apply shadow-lg;
+  }
+}
+
+/* Bottom navigation styles */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: hsl(var(--background));
+  border-top: 1px solid hsl(var(--border));
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 50;
+}
+
+/* Page container with bottom nav spacing */
+.page-with-nav {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+}
+
+/* Floating action button */
+.fab {
+  position: fixed;
+  bottom: calc(90px + env(safe-area-inset-bottom));
+  right: 16px;
+  z-index: 40;
+}
+
+/* Notion-style hand-drawn icon effects */
+.icon-notion {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Purple accent button style (primary action) */
+.btn-accent-purple {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-radius: 9999px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-accent-purple:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Mint accent for notifications and success states */
+.btn-accent-mint {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  border-radius: 9999px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-accent-mint:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Enhanced card visibility for light theme */
+@layer components {
+  /* Cards with subtle shadow and border in light mode */
+  .card-elevated {
+    @apply bg-card border border-border/50 shadow-sm;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  }
+  
+  .card-elevated:hover {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  }
+  
+  /* Stats cards with better visibility */
+  .stats-card {
+    @apply bg-card border border-border/60 rounded-xl p-4;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04);
+  }
+  
+  /* Action buttons with better contrast */
+  .btn-visible {
+    @apply border border-border/70 shadow-sm;
+  }
+  
+  /* Table rows with better separation */
+  .table-row-visible {
+    @apply border-b border-border/60;
+  }
+  
+  .table-row-visible:hover {
+    @apply bg-muted/40;
+  }
+  
+  /* Input fields with better visibility */
+  .input-visible {
+    @apply border border-border/80 shadow-sm;
+  }
+  
+  /* Modal/dialog with enhanced shadow */
+  .modal-elevated {
+    box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.08);
+  }
+  
+  /* Sidebar items with better hover state */
+  .sidebar-item-visible {
+    @apply rounded-lg transition-all duration-200;
+  }
+  
+  .sidebar-item-visible:hover {
+    @apply bg-sidebar-accent/20;
+  }
+  
+  /* Quick action cards */
+  .quick-action-card {
+    @apply bg-card border border-border/50 rounded-xl p-4 transition-all duration-200;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+  }
+  
+  .quick-action-card:hover {
+    @apply border-primary/30;
+    box-shadow: 0 4px 8px -2px rgb(0 0 0 / 0.06);
+    transform: translateY(-1px);
+  }
+  
+  /* Progress bars with better visibility */
+  .progress-visible {
+    @apply bg-muted/80 rounded-full overflow-hidden;
+  }
+  
+  /* Badge/tag with better contrast */
+  .badge-visible {
+    @apply border border-current/20;
+  }
+}
+
+/* Light theme specific enhancements */
+:root {
+  /* Slightly darker border for better visibility */
+  --border-enhanced: 220 13% 85%;
+}
+
+/* Apply enhanced borders to shadcn Card component */
+[data-slot="card"] {
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+}
+
+/* Better button visibility in light mode */
+button[data-variant="outline"] {
+  border-color: hsl(var(--border));
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+}
+
+/* Table header with subtle background */
+thead tr {
+  background: hsl(var(--muted) / 0.5);
+}
+
+/* Form inputs with better focus states */
+input:focus, select:focus, textarea:focus {
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.15);
+}

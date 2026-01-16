@@ -1,0 +1,109 @@
+# =============================================================================
+# Ortho Patient App - Docker Compose (Development/Staging)
+# =============================================================================
+# Использование: docker compose -f docker-compose.dev.yml up -d --build
+# =============================================================================
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    container_name: ortho-patient-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Node environment
+      - NODE_ENV=production
+      
+      # Database
+      - DATABASE_URL=postgresql://ortho:${DB_PASSWORD:-ortho123}@db:5432/ortho_patient
+      
+      # Authentication
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
+      - OAUTH_SERVER_URL=${OAUTH_SERVER_URL}
+      - OWNER_NAME=${OWNER_NAME}
+      - OWNER_OPEN_ID=${OWNER_OPEN_ID}
+      
+      # Forge API
+      - BUILT_IN_FORGE_API_KEY=${BUILT_IN_FORGE_API_KEY}
+      - BUILT_IN_FORGE_API_URL=${BUILT_IN_FORGE_API_URL}
+      
+      # Frontend configuration
+      - VITE_APP_ID=${VITE_APP_ID}
+      - VITE_APP_TITLE=${VITE_APP_TITLE:-Ortho Innovations}
+      - VITE_APP_LOGO=${VITE_APP_LOGO}
+      - VITE_OAUTH_PORTAL_URL=${VITE_OAUTH_PORTAL_URL}
+      - VITE_FRONTEND_FORGE_API_KEY=${VITE_FRONTEND_FORGE_API_KEY}
+      - VITE_FRONTEND_FORGE_API_URL=${VITE_FRONTEND_FORGE_API_URL}
+      
+      # Firebase (Push notifications)
+      - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY:-AIzaSyB_kgiOiqLwZkWq-ENi64GYyJSwAKK7dBQ}
+      - VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN:-ortho-innovations.firebaseapp.com}
+      - VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID:-ortho-innovations}
+      - VITE_FIREBASE_STORAGE_BUCKET=${VITE_FIREBASE_STORAGE_BUCKET:-ortho-innovations.firebasestorage.app}
+      - VITE_FIREBASE_MESSAGING_SENDER_ID=${VITE_FIREBASE_MESSAGING_SENDER_ID:-914686839626}
+      - VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID:-1:914686839626:web:167c8a6ca7af14d85e4fb3}
+      - VITE_FIREBASE_VAPID_KEY=${VITE_FIREBASE_VAPID_KEY:-BLvxBh3zA6oKMU-UGpFKgWumw5JfvFQL9Of26hwfarqJTfd_4WSxudNM8-0zikjVer7R3wFk5ELVlMrDyebQ6wQ}
+      
+      # Analytics
+      - VITE_ANALYTICS_ENDPOINT=${VITE_ANALYTICS_ENDPOINT}
+      - VITE_ANALYTICS_WEBSITE_ID=${VITE_ANALYTICS_WEBSITE_ID}
+    
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ortho-network
+    
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  db:
+    image: postgres:16-alpine
+    container_name: ortho-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=ortho
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-ortho123}
+      - POSTGRES_DB=ortho_patient
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - ortho-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ortho -d ortho_patient"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
+networks:
+  ortho-network:
+    driver: bridge
