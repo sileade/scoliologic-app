@@ -7,9 +7,17 @@ import * as db from "./db";
 import { getPatientRehabEvents, generateICSFeed, getCalendarSubscriptionURL } from "./calendar-feed";
 import { processReminders, getNotificationPreferences, updateNotificationPreferences, REMINDER_INTERVALS } from "./notifications";
 import { syncPatientCalendar, onScheduleChange, getLastSyncTime, getCalendarFeedVersion } from "./calendar-sync";
+import { misRouter } from "./mis/router";
+import { messengerRouter } from "./messenger/router";
+import { aiTrpcRouter } from "./ai/trpcRouter";
 
 export const appRouter = router({
   system: systemRouter,
+  
+  // Новые роутеры для Scoliologic
+  mis: misRouter,
+  messenger: messengerRouter,
+  ai: aiTrpcRouter,
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
