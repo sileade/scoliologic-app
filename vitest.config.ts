@@ -17,8 +17,13 @@ export default defineConfig({
     include: [
       "server/**/*.test.ts",
       "server/**/*.spec.ts",
-      "tests/**/*.test.ts",
-      "tests/**/*.spec.ts",
+      "tests/integration/**/*.test.ts",
+      "tests/unit/**/*.test.ts",
+      "tests/e2e/**/*.test.ts",
+    ],
+    exclude: [
+      "tests/ux/**/*.spec.ts",
+      "node_modules/**",
     ],
   },
 });

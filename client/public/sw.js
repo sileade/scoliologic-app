@@ -1,17 +1,19 @@
 /**
- * Service Worker for Ortho Innovations Patient App
- * Provides offline caching and background sync
+ * Service Worker for Scoliologic Patient App
+ * Provides offline caching, background sync, and push notifications
  */
 
-const CACHE_NAME = 'ortho-patient-v1';
-const STATIC_CACHE = 'ortho-static-v1';
-const API_CACHE = 'ortho-api-v1';
+const CACHE_NAME = 'scoliologic-v2';
+const STATIC_CACHE = 'scoliologic-static-v2';
+const API_CACHE = 'scoliologic-api-v2';
 
 // Static assets to cache immediately
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 // API endpoints to cache
@@ -28,7 +30,10 @@ const CACHEABLE_API_PATTERNS = [
   '/api/trpc/notifications.getAll',
 ];
 
-// Install event - cache static assets
+// =============================================================================
+// Installation
+// =============================================================================
+
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing service worker...');
   event.waitUntil(
@@ -41,14 +46,17 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event - clean up old caches
+// =============================================================================
+// Activation
+// =============================================================================
+
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating service worker...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME && name !== STATIC_CACHE && name !== API_CACHE)
+          .filter((name) => !name.includes('scoliologic'))
           .map((name) => {
             console.log('[SW] Deleting old cache:', name);
             return caches.delete(name);
@@ -58,7 +66,10 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - serve from cache, fallback to network
+// =============================================================================
+// Fetch
+// =============================================================================
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -84,7 +95,6 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        // Cache successful responses
         if (response.ok) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -98,7 +108,6 @@ self.addEventListener('fetch', (event) => {
           if (cachedResponse) {
             return cachedResponse;
           }
-          // Return offline page for navigation requests
           if (request.mode === 'navigate') {
             return caches.match('/');
           }
@@ -108,12 +117,150 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Handle API requests with stale-while-revalidate strategy
+// =============================================================================
+// Push Notifications
+// =============================================================================
+
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push received');
+
+  let data = {
+    title: 'Scoliologic',
+    body: 'Новое уведомление',
+    icon: '/icon-192.png',
+    badge: '/badge-72.png',
+    data: {},
+  };
+
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+      data = { ...data, ...payload };
+    } catch (e) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon,
+    badge: data.badge,
+    vibrate: [100, 50, 100],
+    data: data.data,
+    actions: getNotificationActions(data.data?.type),
+    requireInteraction: data.data?.requireInteraction || false,
+    tag: data.data?.tag || 'default',
+    renotify: true,
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// =============================================================================
+// Notification Click
+// =============================================================================
+
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification clicked:', event.action);
+  
+  event.notification.close();
+
+  const data = event.notification.data || {};
+  let url = '/';
+
+  // Определяем URL в зависимости от типа уведомления
+  if (data.type === 'message') {
+    url = `/messages/${data.chatId || ''}`;
+  } else if (data.type === 'appointment') {
+    url = `/appointments/${data.appointmentId || ''}`;
+  } else if (data.type === 'device') {
+    url = `/devices/${data.deviceId || ''}`;
+  } else if (data.url) {
+    url = data.url;
+  }
+
+  // Обработка действий
+  if (event.action === 'reply') {
+    url = `/messages/${data.chatId || ''}?reply=true`;
+  } else if (event.action === 'dismiss') {
+    return;
+  }
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if (client.url.includes(url) && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        if (clients.openWindow) {
+          return clients.openWindow(url);
+        }
+      })
+  );
+});
+
+// =============================================================================
+// Notification Close
+// =============================================================================
+
+self.addEventListener('notificationclose', (event) => {
+  console.log('[SW] Notification closed');
+  
+  const data = event.notification.data || {};
+  
+  if (data.trackClose) {
+    fetch('/api/analytics/notification-close', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        notificationId: data.notificationId,
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  }
+});
+
+// =============================================================================
+// Background Sync
+// =============================================================================
+
+self.addEventListener('sync', (event) => {
+  console.log('[SW] Background sync:', event.tag);
+  
+  if (event.tag === 'sync-mutations') {
+    event.waitUntil(syncMutations());
+  } else if (event.tag === 'sync-messages') {
+    event.waitUntil(syncMessages());
+  } else if (event.tag === 'sync-analytics') {
+    event.waitUntil(syncAnalytics());
+  }
+});
+
+async function syncMutations() {
+  console.log('[SW] Syncing offline mutations...');
+  // Реализация через IndexedDB
+}
+
+async function syncMessages() {
+  console.log('[SW] Syncing messages...');
+}
+
+async function syncAnalytics() {
+  console.log('[SW] Syncing analytics...');
+}
+
+// =============================================================================
+// API Request Handler (Stale-While-Revalidate)
+// =============================================================================
+
 async function handleApiRequest(request) {
   const cache = await caches.open(API_CACHE);
   const cachedResponse = await cache.match(request);
 
-  // Check if this endpoint should be cached
   const shouldCache = CACHEABLE_API_PATTERNS.some(pattern => 
     request.url.includes(pattern)
   );
@@ -122,7 +269,6 @@ async function handleApiRequest(request) {
     return fetch(request);
   }
 
-  // Stale-while-revalidate: return cached immediately, update in background
   const fetchPromise = fetch(request)
     .then((response) => {
       if (response.ok) {
@@ -141,9 +287,7 @@ async function handleApiRequest(request) {
       );
     });
 
-  // Return cached response immediately if available
   if (cachedResponse) {
-    // Update cache in background
     fetchPromise.catch(() => {});
     return cachedResponse;
   }
@@ -151,13 +295,15 @@ async function handleApiRequest(request) {
   return fetchPromise;
 }
 
-// Handle static assets with cache-first strategy
+// =============================================================================
+// Static Request Handler (Cache-First)
+// =============================================================================
+
 async function handleStaticRequest(request) {
   const cache = await caches.open(STATIC_CACHE);
   const cachedResponse = await cache.match(request);
 
   if (cachedResponse) {
-    // Update cache in background
     fetch(request).then((response) => {
       if (response.ok) {
         cache.put(request, response);
@@ -177,10 +323,30 @@ async function handleStaticRequest(request) {
   }
 }
 
-// Check if URL is a static asset
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
 function isStaticAsset(pathname) {
   const staticExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2'];
   return staticExtensions.some(ext => pathname.endsWith(ext));
+}
+
+function getNotificationActions(type) {
+  switch (type) {
+    case 'message':
+      return [
+        { action: 'reply', title: 'Ответить', icon: '/icons/reply.png' },
+        { action: 'dismiss', title: 'Закрыть', icon: '/icons/close.png' },
+      ];
+    case 'appointment':
+      return [
+        { action: 'view', title: 'Открыть', icon: '/icons/view.png' },
+        { action: 'dismiss', title: 'Закрыть', icon: '/icons/close.png' },
+      ];
+    default:
+      return [];
+  }
 }
 
 // Listen for messages from the main thread
@@ -195,18 +361,5 @@ self.addEventListener('message', (event) => {
     });
   }
 });
-
-// Background sync for offline mutations
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-mutations') {
-    event.waitUntil(syncMutations());
-  }
-});
-
-async function syncMutations() {
-  // Get pending mutations from IndexedDB
-  // This would be implemented with actual IndexedDB storage
-  console.log('[SW] Syncing offline mutations...');
-}
 
 console.log('[SW] Service Worker loaded');
