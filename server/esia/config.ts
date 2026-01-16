@@ -8,7 +8,7 @@
  * Документация: https://digital.gov.ru/ru/documents/6186/
  */
 
-import { env } from "../_core/env";
+import { ENV } from "../_core/env";
 
 export interface ESIAConfig {
   // Идентификатор системы-клиента (мнемоника), зарегистрированной в ЕСИА
@@ -33,9 +33,9 @@ const ESIA_TEST_URL = "https://esia-portal1.test.gosuslugi.ru";
 const ESIA_PROD_URL = "https://esia.gosuslugi.ru";
 
 export const esiaConfig: ESIAConfig = {
-  clientId: env.ESIA_CLIENT_ID || "SCOLIOLOGIC",
-  clientSecret: env.ESIA_CLIENT_SECRET || "",
-  redirectUri: env.ESIA_REDIRECT_URI || "https://app.scoliologic.ru/auth/esia/callback",
+  clientId: process.env.ESIA_CLIENT_ID || "SCOLIOLOGIC",
+  clientSecret: process.env.ESIA_CLIENT_SECRET || "",
+  redirectUri: process.env.ESIA_REDIRECT_URI || "https://app.scoliologic.ru/auth/esia/callback",
   scope: [
     "openid",           // Обязательный scope
     "fullname",         // ФИО
@@ -48,9 +48,9 @@ export const esiaConfig: ESIAConfig = {
     "id_doc",           // Документ, удостоверяющий личность
     "medical_doc",      // Медицинские документы (полис ОМС)
   ],
-  esiaUrl: env.ESIA_ENV === "production" ? ESIA_PROD_URL : ESIA_TEST_URL,
-  certificatePath: env.ESIA_CERT_PATH,
-  privateKeyPath: env.ESIA_KEY_PATH,
+  esiaUrl: process.env.ESIA_ENVIRONMENT === "prod" ? ESIA_PROD_URL : ESIA_TEST_URL,
+  certificatePath: process.env.ESIA_CERTIFICATE_PATH,
+  privateKeyPath: process.env.ESIA_PRIVATE_KEY_PATH,
 };
 
 // Endpoints ЕСИА

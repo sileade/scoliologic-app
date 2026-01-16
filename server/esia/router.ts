@@ -3,9 +3,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import { db } from "../db";
-import { patients } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { getDb, upsertEsiaUser, getUserByOpenId, ensurePatientExists } from "../db";
 import {
   generateState,
   getAuthorizationUrl,
@@ -16,7 +14,6 @@ import {
   isVerificationSufficient,
 } from "./service";
 import { ESIAUserInfo, ESIAError } from "./config";
-import { createSession, destroySession } from "../_core/session";
 
 const router = Router();
 
@@ -26,7 +23,8 @@ const stateStore = new Map<string, { createdAt: number; returnUrl?: string }>();
 // Очистка устаревших state (старше 10 минут)
 setInterval(() => {
   const now = Date.now();
-  for (const [state, data] of stateStore.entries()) {
+  const entries = Array.from(stateStore.entries());
+  for (const [state, data] of entries) {
     if (now - data.createdAt > 10 * 60 * 1000) {
       stateStore.delete(state);
     }
@@ -104,89 +102,54 @@ router.get("/callback", async (req: Request, res: Response) => {
       return res.redirect("/auth/error?error=verification_required");
     }
     
-    // Ищем или создаём пользователя в базе данных
-    let patient = await db.query.patients.findFirst({
-      where: eq(patients.esiaOid, userInfo.oid),
-    });
+    // Создаём или обновляем пользователя в базе данных
+    const openId = `esia:${userInfo.oid}`;
+    const fullName = [userInfo.lastName, userInfo.firstName, userInfo.middleName]
+      .filter(Boolean)
+      .join(" ");
     
-    if (!patient) {
-      // Проверяем по СНИЛС
-      if (userInfo.snils) {
-        patient = await db.query.patients.findFirst({
-          where: eq(patients.snils, userInfo.snils),
-        });
-      }
+    // Upsert user
+    const db = await getDb();
+    if (db) {
+      // Создаём пользователя
+      const { upsertUser } = await import("../db");
+      await upsertUser({
+        openId,
+        name: fullName,
+        email: userInfo.email || null,
+        loginMethod: "esia",
+        lastSignedIn: new Date(),
+      });
       
-      if (!patient) {
-        // Создаём нового пациента
-        const [newPatient] = await db
-          .insert(patients)
-          .values({
-            esiaOid: userInfo.oid,
-            firstName: userInfo.firstName,
-            lastName: userInfo.lastName,
-            middleName: userInfo.middleName,
-            birthDate: userInfo.birthDate ? new Date(userInfo.birthDate) : null,
-            gender: userInfo.gender === "M" ? "male" : userInfo.gender === "F" ? "female" : null,
-            snils: userInfo.snils,
-            inn: userInfo.inn,
-            phone: userInfo.mobile,
-            email: userInfo.email,
-            omsNumber: userInfo.omsNumber,
-            verificationLevel: userInfo.verificationLevel,
-            isVerified: userInfo.trusted || false,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          })
-          .returning();
-        
-        patient = newPatient;
-      } else {
-        // Обновляем существующего пациента данными из ЕСИА
-        await db
-          .update(patients)
-          .set({
-            esiaOid: userInfo.oid,
-            firstName: userInfo.firstName,
-            lastName: userInfo.lastName,
-            middleName: userInfo.middleName,
-            phone: userInfo.mobile || patient.phone,
-            email: userInfo.email || patient.email,
-            verificationLevel: userInfo.verificationLevel,
-            isVerified: userInfo.trusted || false,
-            updatedAt: new Date(),
-          })
-          .where(eq(patients.id, patient.id));
-      }
-    } else {
-      // Обновляем данные при каждом входе
-      await db
-        .update(patients)
-        .set({
+      // Получаем пользователя
+      const user = await getUserByOpenId(openId);
+      
+      if (user) {
+        // Сохраняем данные ЕСИА
+        await upsertEsiaUser(user.id, {
+          esiaOid: userInfo.oid,
+          snils: userInfo.snils,
+          inn: userInfo.inn,
           firstName: userInfo.firstName,
           lastName: userInfo.lastName,
           middleName: userInfo.middleName,
-          phone: userInfo.mobile || patient.phone,
-          email: userInfo.email || patient.email,
-          verificationLevel: userInfo.verificationLevel,
-          isVerified: userInfo.trusted || false,
-          lastLoginAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(patients.id, patient.id));
+          birthDate: userInfo.birthDate ? new Date(userInfo.birthDate) : undefined,
+          gender: userInfo.gender,
+          trusted: userInfo.trusted,
+        });
+        
+        // Создаём запись пациента
+        await ensurePatientExists(openId, fullName);
+      }
     }
     
-    // Создаём сессию
-    const session = await createSession({
-      userId: patient.id,
-      userType: "patient",
-      esiaOid: userInfo.oid,
-      accessToken: tokenResult.access_token,
-      expiresIn: tokenResult.expires_in,
-    });
-    
-    // Устанавливаем cookie с сессией
-    res.cookie("session", session.token, {
+    // Устанавливаем cookie с сессией (упрощённая версия)
+    res.cookie("esia_session", JSON.stringify({
+      openId,
+      oid: userInfo.oid,
+      name: fullName,
+      expiresAt: Date.now() + tokenResult.expires_in * 1000,
+    }), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -206,12 +169,7 @@ router.get("/callback", async (req: Request, res: Response) => {
  * Выход из системы и ЕСИА
  */
 router.get("/logout", async (req: Request, res: Response) => {
-  const sessionToken = req.cookies?.session;
-  
-  if (sessionToken) {
-    await destroySession(sessionToken);
-    res.clearCookie("session");
-  }
+  res.clearCookie("esia_session");
   
   const returnUrl = req.query.returnUrl as string || "/";
   
@@ -229,18 +187,28 @@ router.get("/logout", async (req: Request, res: Response) => {
  * Проверка статуса авторизации
  */
 router.get("/status", async (req: Request, res: Response) => {
-  const sessionToken = req.cookies?.session;
+  const sessionCookie = req.cookies?.esia_session;
   
-  if (!sessionToken) {
+  if (!sessionCookie) {
     return res.json({ authenticated: false });
   }
   
-  // Здесь должна быть проверка сессии
-  // Для демонстрации возвращаем базовый ответ
-  res.json({
-    authenticated: true,
-    provider: "esia",
-  });
+  try {
+    const session = JSON.parse(sessionCookie);
+    
+    if (session.expiresAt < Date.now()) {
+      res.clearCookie("esia_session");
+      return res.json({ authenticated: false, reason: "expired" });
+    }
+    
+    res.json({
+      authenticated: true,
+      provider: "esia",
+      name: session.name,
+    });
+  } catch {
+    res.json({ authenticated: false });
+  }
 });
 
 export default router;

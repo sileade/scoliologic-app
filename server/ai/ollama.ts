@@ -12,7 +12,7 @@
  * - медицинские fine-tuned модели
  */
 
-import { env } from "../_core/env";
+// Используем process.env напрямую для конфигурации
 
 export interface OllamaConfig {
   // URL сервера Ollama в локальной сети
@@ -30,11 +30,11 @@ export interface OllamaConfig {
 }
 
 export const ollamaConfig: OllamaConfig = {
-  baseUrl: env.OLLAMA_URL || "http://ollama.local:11434",
-  defaultModel: env.OLLAMA_MODEL || "llama3",
-  timeout: parseInt(env.OLLAMA_TIMEOUT || "60000"),
-  maxTokens: parseInt(env.OLLAMA_MAX_TOKENS || "2048"),
-  temperature: parseFloat(env.OLLAMA_TEMPERATURE || "0.7"),
+  baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
+  defaultModel: process.env.OLLAMA_MODEL || "llama3.2",
+  timeout: parseInt(process.env.OLLAMA_TIMEOUT || "60000"),
+  maxTokens: parseInt(process.env.OLLAMA_MAX_TOKENS || "2048"),
+  temperature: parseFloat(process.env.OLLAMA_TEMPERATURE || "0.7"),
   systemPrompt: `Ты - медицинский AI-ассистент клиники Scoliologic, специализирующейся на лечении сколиоза и деформаций позвоночника.
 
 Твои задачи:

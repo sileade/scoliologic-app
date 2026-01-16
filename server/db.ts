@@ -1,5 +1,6 @@
 import { eq, and, desc, sql, like, or, inArray } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 import { 
   InsertUser, 
   users, 
@@ -13,22 +14,40 @@ import {
   appointments, 
   notifications, 
   achievements,
+  messages,
+  esiaUsers,
+  medicalDevices,
   Task
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
+const { Pool } = pg;
+
 let _db: ReturnType<typeof drizzle> | null = null;
+let _pool: pg.Pool | null = null;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
+      });
+      _db = drizzle(_pool);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
     }
   }
   return _db;
+}
+
+export async function closeDb() {
+  if (_pool) {
+    await _pool.end();
+    _pool = null;
+    _db = null;
+  }
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
@@ -81,7 +100,9 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       updateSet.lastSignedIn = new Date();
     }
 
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
+    // PostgreSQL upsert using ON CONFLICT
+    await db.insert(users).values(values).onConflictDoUpdate({
+      target: users.openId,
       set: updateSet,
     });
   } catch (error) {
@@ -280,8 +301,6 @@ export async function getArticles(filters?: {
   const db = await getDb();
   if (!db) return [];
   
-  let query = db.select().from(articles).where(eq(articles.published, true));
-  
   const conditions = [eq(articles.published, true)];
   
   if (filters?.category && filters.category !== "all") {
@@ -353,9 +372,9 @@ export async function createServiceRequest(userId: number, data: {
     type: data.type,
     description: data.description,
     status: "pending",
-  });
+  }).returning({ id: serviceRequests.id });
   
-  return { id: result[0].insertId, ...data, status: "pending" };
+  return { id: result[0].id, ...data, status: "pending" };
 }
 
 export async function cancelServiceRequest(userId: number, requestId: number) {
@@ -492,9 +511,9 @@ export async function createAppointment(data: {
     doctorName: data.doctorName,
     location: data.location,
     status: "scheduled",
-  });
+  }).returning({ id: appointments.id });
   
-  return { id: result[0].insertId, ...data, status: "scheduled" };
+  return { id: result[0].id, ...data, status: "scheduled" };
 }
 
 export async function updateAppointment(id: number, data: {
@@ -544,9 +563,9 @@ export async function createTask(data: {
     duration: data.duration,
     scheduledDate: data.scheduledDate,
     completed: false,
-  });
+  }).returning({ id: tasks.id });
   
-  return { id: result[0].insertId, ...data, completed: false };
+  return { id: result[0].id, ...data, completed: false };
 }
 
 
@@ -660,9 +679,9 @@ export async function createRehabPlan(data: {
     status: 'active',
     progress: 0,
     startDate: new Date(),
-  });
+  }).returning({ id: rehabilitationPlans.id });
   
-  return { id: result[0].insertId, ...data, status: 'active' };
+  return { id: result[0].id, ...data, status: 'active' };
 }
 
 // Update rehabilitation plan status
@@ -726,9 +745,9 @@ export async function createContent(data: {
     content: data.content,
     published: false,
     views: 0,
-  });
+  }).returning({ id: articles.id });
   
-  return { id: result[0].insertId, ...data, published: false };
+  return { id: result[0].id, ...data, published: false };
 }
 
 // Update content
@@ -992,4 +1011,181 @@ export async function getAdminDashboardStats() {
     pendingOrders: pendingOrders[0]?.count || 0,
     publishedArticles: recentArticles[0]?.count || 0,
   };
+}
+
+// ==================== MESSENGER FUNCTIONS ====================
+
+// Get messages between two users
+export async function getMessages(userId1: number, userId2: number, limit: number = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select()
+    .from(messages)
+    .where(or(
+      and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
+      and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
+    ))
+    .orderBy(desc(messages.createdAt))
+    .limit(limit);
+}
+
+// Send encrypted message
+export async function sendMessage(senderId: number, receiverId: number, encryptedContent: string, iv: string) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db.insert(messages).values({
+    senderId,
+    receiverId,
+    encryptedContent,
+    iv,
+    isRead: false,
+  }).returning({ id: messages.id, createdAt: messages.createdAt });
+  
+  return result[0];
+}
+
+// Mark messages as read
+export async function markMessagesAsRead(userId: number, senderId: number) {
+  const db = await getDb();
+  if (!db) return;
+  
+  await db.update(messages)
+    .set({ isRead: true, readAt: new Date() })
+    .where(and(
+      eq(messages.receiverId, userId),
+      eq(messages.senderId, senderId),
+      eq(messages.isRead, false)
+    ));
+}
+
+// ==================== ESIA FUNCTIONS ====================
+
+// Get or create ESIA user
+export async function upsertEsiaUser(userId: number, esiaData: {
+  esiaOid: string;
+  snils?: string;
+  inn?: string;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  birthDate?: Date;
+  gender?: string;
+  trusted?: boolean;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  await db.insert(esiaUsers).values({
+    userId,
+    esiaOid: esiaData.esiaOid,
+    snils: esiaData.snils,
+    inn: esiaData.inn,
+    firstName: esiaData.firstName,
+    lastName: esiaData.lastName,
+    middleName: esiaData.middleName,
+    birthDate: esiaData.birthDate,
+    gender: esiaData.gender,
+    trusted: esiaData.trusted,
+    verifiedAt: new Date(),
+  }).onConflictDoUpdate({
+    target: esiaUsers.userId,
+    set: {
+      snils: esiaData.snils,
+      inn: esiaData.inn,
+      firstName: esiaData.firstName,
+      lastName: esiaData.lastName,
+      middleName: esiaData.middleName,
+      birthDate: esiaData.birthDate,
+      gender: esiaData.gender,
+      trusted: esiaData.trusted,
+      verifiedAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+  
+  const result = await db.select().from(esiaUsers).where(eq(esiaUsers.userId, userId)).limit(1);
+  return result[0] || null;
+}
+
+// Get ESIA user by user ID
+export async function getEsiaUser(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db.select().from(esiaUsers).where(eq(esiaUsers.userId, userId)).limit(1);
+  return result[0] || null;
+}
+
+// ==================== MEDICAL DEVICES (MIS) FUNCTIONS ====================
+
+// Get patient's medical devices
+export async function getPatientMedicalDevices(patientId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select()
+    .from(medicalDevices)
+    .where(eq(medicalDevices.patientId, patientId))
+    .orderBy(desc(medicalDevices.createdAt));
+}
+
+// Sync medical device from MIS
+export async function syncMedicalDevice(patientId: number, deviceData: {
+  misId: string;
+  name: string;
+  type: string;
+  model?: string;
+  serialNumber?: string;
+  manufacturer?: string;
+  manufacturingDate?: Date;
+  warrantyExpiry?: Date;
+  warrantyStatus?: 'active' | 'expired' | 'void';
+  lastServiceDate?: Date;
+  nextServiceDate?: Date;
+  instructions?: string;
+  notes?: string;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  await db.insert(medicalDevices).values({
+    patientId,
+    misId: deviceData.misId,
+    name: deviceData.name,
+    type: deviceData.type,
+    model: deviceData.model,
+    serialNumber: deviceData.serialNumber,
+    manufacturer: deviceData.manufacturer,
+    manufacturingDate: deviceData.manufacturingDate,
+    warrantyExpiry: deviceData.warrantyExpiry,
+    warrantyStatus: deviceData.warrantyStatus || 'active',
+    lastServiceDate: deviceData.lastServiceDate,
+    nextServiceDate: deviceData.nextServiceDate,
+    instructions: deviceData.instructions,
+    notes: deviceData.notes,
+    syncedAt: new Date(),
+  }).onConflictDoUpdate({
+    target: medicalDevices.misId,
+    set: {
+      name: deviceData.name,
+      type: deviceData.type,
+      model: deviceData.model,
+      serialNumber: deviceData.serialNumber,
+      manufacturer: deviceData.manufacturer,
+      manufacturingDate: deviceData.manufacturingDate,
+      warrantyExpiry: deviceData.warrantyExpiry,
+      warrantyStatus: deviceData.warrantyStatus || 'active',
+      lastServiceDate: deviceData.lastServiceDate,
+      nextServiceDate: deviceData.nextServiceDate,
+      instructions: deviceData.instructions,
+      notes: deviceData.notes,
+      syncedAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+  
+  const result = await db.select().from(medicalDevices).where(eq(medicalDevices.misId, deviceData.misId)).limit(1);
+  return result[0] || null;
 }

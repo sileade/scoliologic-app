@@ -51,10 +51,9 @@ async function fetchMIS<T>(
 ): Promise<MISResponse<T>> {
   const url = `${misConfig.baseUrl}${endpoint}`;
   
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
-    ...options.headers,
   };
   
   // Добавляем авторизацию
@@ -343,7 +342,8 @@ export function clearCache(pattern?: string): void {
     return;
   }
   
-  for (const key of cache.keys()) {
+  const keys = Array.from(cache.keys());
+  for (const key of keys) {
     if (key.includes(pattern)) {
       cache.delete(key);
     }

@@ -10,7 +10,7 @@
  * - SOAP (legacy)
  */
 
-import { env } from "../_core/env";
+// Используем process.env напрямую для конфигурации
 
 export interface MISConfig {
   // Базовый URL МИС API
@@ -32,14 +32,14 @@ export interface MISConfig {
 }
 
 export const misConfig: MISConfig = {
-  baseUrl: env.MIS_API_URL || "http://mis.scoliologic.local/api/v1",
-  apiType: (env.MIS_API_TYPE as MISConfig["apiType"]) || "fhir",
-  apiKey: env.MIS_API_KEY,
-  username: env.MIS_USERNAME,
-  password: env.MIS_PASSWORD,
-  timeout: parseInt(env.MIS_TIMEOUT || "30000"),
-  enableCache: env.MIS_CACHE_ENABLED !== "false",
-  cacheTTL: parseInt(env.MIS_CACHE_TTL || "300"),
+  baseUrl: process.env.MIS_API_URL || "http://mis.scoliologic.local/api/v1",
+  apiType: (process.env.MIS_TYPE as MISConfig["apiType"]) || "fhir",
+  apiKey: process.env.MIS_API_KEY,
+  username: process.env.MIS_USERNAME,
+  password: process.env.MIS_PASSWORD,
+  timeout: parseInt(process.env.MIS_TIMEOUT || "30000"),
+  enableCache: process.env.MIS_CACHE_ENABLED !== "false",
+  cacheTTL: parseInt(process.env.MIS_CACHE_TTL || "300"),
 };
 
 // Типы изделий

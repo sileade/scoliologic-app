@@ -8,9 +8,6 @@
  * - Метаданные (время, статус доставки)
  */
 
-import { db } from "../db";
-import { eq, and, or, desc } from "drizzle-orm";
-
 // Типы для мессенджера
 export interface Chat {
   id: string;
@@ -55,7 +52,7 @@ export interface StoredMessage {
 }
 
 export interface PublicKeyRecord {
-  oderId: string;
+  userId: string;
   publicKey: string;
   fingerprint: string;
   createdAt: Date;
@@ -64,7 +61,7 @@ export interface PublicKeyRecord {
 
 // In-memory хранилище (в продакшене использовать PostgreSQL/Redis)
 const chats = new Map<string, Chat>();
-const messages = new Map<string, StoredMessage[]>();
+const messagesStore = new Map<string, StoredMessage[]>();
 const publicKeys = new Map<string, PublicKeyRecord>();
 const undeliveredMessages = new Map<string, StoredMessage[]>();
 
@@ -84,7 +81,7 @@ export function registerPublicKey(
   fingerprint: string
 ): PublicKeyRecord {
   const record: PublicKeyRecord = {
-    oderId: oderId,
+    userId: userId,
     publicKey,
     fingerprint,
     createdAt: new Date(),
@@ -121,7 +118,8 @@ export function createPatientDoctorChat(
   specialty: string
 ): Chat {
   // Проверяем существующий чат
-  for (const chat of chats.values()) {
+  const existingChats = Array.from(chats.values());
+  for (const chat of existingChats) {
     if (
       chat.type === "patient_doctor" &&
       chat.participantIds.includes(patientId) &&
@@ -145,7 +143,7 @@ export function createPatientDoctorChat(
   };
   
   chats.set(chat.id, chat);
-  messages.set(chat.id, []);
+  messagesStore.set(chat.id, []);
   
   return chat;
 }
@@ -155,10 +153,11 @@ export function createPatientDoctorChat(
  */
 export function createAIChat(
   patientId: string,
-  aiModel: string = "llama3"
+  aiModel: string = "llama3.2"
 ): Chat {
   // Проверяем существующий чат
-  for (const chat of chats.values()) {
+  const existingChats = Array.from(chats.values());
+  for (const chat of existingChats) {
     if (
       chat.type === "patient_ai" &&
       chat.participantIds.includes(patientId)
@@ -179,7 +178,7 @@ export function createAIChat(
   };
   
   chats.set(chat.id, chat);
-  messages.set(chat.id, []);
+  messagesStore.set(chat.id, []);
   
   return chat;
 }
@@ -190,7 +189,8 @@ export function createAIChat(
 export function getUserChats(userId: string): Chat[] {
   const userChats: Chat[] = [];
   
-  for (const chat of chats.values()) {
+  const allChats = Array.from(chats.values());
+  for (const chat of allChats) {
     if (chat.participantIds.includes(userId)) {
       userChats.push(chat);
     }
@@ -222,9 +222,9 @@ export function storeMessage(payload: EncryptedMessagePayload): StoredMessage {
   };
   
   // Сохраняем сообщение
-  const chatMessages = messages.get(payload.chatId) || [];
+  const chatMessages = messagesStore.get(payload.chatId) || [];
   chatMessages.push(message);
-  messages.set(payload.chatId, chatMessages);
+  messagesStore.set(payload.chatId, chatMessages);
   
   // Обновляем время последнего сообщения в чате
   const chat = chats.get(payload.chatId);
@@ -255,7 +255,7 @@ export function getChatMessages(
   limit: number = 50,
   before?: string
 ): StoredMessage[] {
-  const chatMessages = messages.get(chatId) || [];
+  const chatMessages = messagesStore.get(chatId) || [];
   
   let filtered = chatMessages;
   if (before) {
@@ -285,7 +285,8 @@ export function markAsDelivered(userId: string, messageIds: string[]): void {
   undeliveredMessages.set(userId, remaining);
   
   // Обновляем статус сообщений
-  for (const [chatId, chatMessages] of messages.entries()) {
+  const allMessages = Array.from(messagesStore.entries());
+  for (const [chatId, chatMessages] of allMessages) {
     for (const message of chatMessages) {
       if (messageIds.includes(message.id)) {
         message.status = "delivered";
@@ -299,7 +300,7 @@ export function markAsDelivered(userId: string, messageIds: string[]): void {
  * Отметка сообщений как прочитанных
  */
 export function markAsRead(chatId: string, userId: string, lastReadMessageId: string): void {
-  const chatMessages = messages.get(chatId) || [];
+  const chatMessages = messagesStore.get(chatId) || [];
   let foundTarget = false;
   
   for (const message of chatMessages) {
@@ -327,7 +328,8 @@ export function deleteMessage(
   messageId: string,
   userId: string
 ): boolean {
-  for (const [chatId, chatMessages] of messages.entries()) {
+  const allMessages = Array.from(messagesStore.entries());
+  for (const [chatId, chatMessages] of allMessages) {
     const index = chatMessages.findIndex(m => m.id === messageId);
     if (index !== -1) {
       const message = chatMessages[index];
@@ -360,7 +362,8 @@ export function getMessengerStats(): {
   activeUsers: number;
 } {
   let totalMessages = 0;
-  for (const chatMessages of messages.values()) {
+  const allMessages = Array.from(messagesStore.values());
+  for (const chatMessages of allMessages) {
     totalMessages += chatMessages.length;
   }
   

@@ -5,19 +5,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ortho-patient-app
+    container_name: scoliologic-patient-app
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-scoliologic}:${POSTGRES_PASSWORD:-scoliologic_pass}@db:5432/${POSTGRES_DB:-scoliologic_db}
+      - DATABASE_SSL=false
       - JWT_SECRET=${JWT_SECRET}
       - OAUTH_SERVER_URL=${OAUTH_SERVER_URL}
       - BUILT_IN_FORGE_API_KEY=${BUILT_IN_FORGE_API_KEY}
       - BUILT_IN_FORGE_API_URL=${BUILT_IN_FORGE_API_URL}
       - VITE_APP_ID=${VITE_APP_ID}
-      - VITE_APP_TITLE=${VITE_APP_TITLE:-Ortho Innovations}
+      - VITE_APP_TITLE=${VITE_APP_TITLE:-Scoliologic Patient App}
       - VITE_APP_LOGO=${VITE_APP_LOGO}
       - VITE_OAUTH_PORTAL_URL=${VITE_OAUTH_PORTAL_URL}
       - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY}
@@ -27,11 +28,22 @@ services:
       - VITE_FIREBASE_MESSAGING_SENDER_ID=${VITE_FIREBASE_MESSAGING_SENDER_ID}
       - VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID}
       - VITE_FIREBASE_VAPID_KEY=${VITE_FIREBASE_VAPID_KEY}
+      # ESIA (Gosuslugi) configuration
+      - ESIA_CLIENT_ID=${ESIA_CLIENT_ID}
+      - ESIA_REDIRECT_URI=${ESIA_REDIRECT_URI}
+      - ESIA_SCOPE=${ESIA_SCOPE:-openid fullname snils}
+      - ESIA_ENVIRONMENT=${ESIA_ENVIRONMENT:-test}
+      # Ollama AI configuration
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
+      # MIS integration
+      - MIS_API_URL=${MIS_API_URL}
+      - MIS_API_KEY=${MIS_API_KEY}
     depends_on:
       db:
         condition: service_healthy
     networks:
-      - ortho-network
+      - scoliologic-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
       interval: 30s
@@ -40,30 +52,49 @@ services:
       start_period: 40s
 
   db:
-    image: mysql:8.0
-    container_name: ortho-mysql
+    image: postgres:16-alpine
+    container_name: scoliologic-postgres
     restart: unless-stopped
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-ortho_root_pass}
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-ortho_db}
-      - MYSQL_USER=${MYSQL_USER:-ortho_user}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-ortho_pass}
+      - POSTGRES_USER=${POSTGRES_USER:-scoliologic}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-scoliologic_pass}
+      - POSTGRES_DB=${POSTGRES_DB:-scoliologic_db}
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "3306:3306"
+      - "5432:5432"
     networks:
-      - ortho-network
+      - scoliologic-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-scoliologic} -d ${POSTGRES_DB:-scoliologic_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: scoliologic-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - scoliologic-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Remove GPU section if not available
+    # Comment out the deploy section above if running on CPU only
+
   nginx:
     image: nginx:alpine
-    container_name: ortho-nginx
+    container_name: scoliologic-nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -74,11 +105,12 @@ services:
     depends_on:
       - app
     networks:
-      - ortho-network
+      - scoliologic-network
 
 volumes:
-  mysql_data:
+  postgres_data:
+  ollama_data:
 
 networks:
-  ortho-network:
+  scoliologic-network:
     driver: bridge

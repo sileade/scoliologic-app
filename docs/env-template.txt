@@ -1,42 +1,104 @@
 # =============================================================================
-# Ortho Patient App - Environment Variables Template
+# Scoliologic Patient App - Environment Variables Template
 # =============================================================================
 # Скопируйте этот файл в .env в корне проекта и заполните значения
 # cp docs/env-template.txt .env
 # =============================================================================
 
-# Database Configuration
-DATABASE_URL=postgresql://ortho:ortho_password@ortho-postgres:5432/ortho_patient
-POSTGRES_USER=ortho
-POSTGRES_PASSWORD=ortho_password
-POSTGRES_DB=ortho_patient
+# =============================================================================
+# PostgreSQL Database Configuration
+# =============================================================================
+DATABASE_URL=postgresql://scoliologic:scoliologic_password@localhost:5432/scoliologic_db
+DATABASE_SSL=false
+POSTGRES_USER=scoliologic
+POSTGRES_PASSWORD=scoliologic_password
+POSTGRES_DB=scoliologic_db
 
+# =============================================================================
 # JWT Secret (измените в production!)
+# =============================================================================
 JWT_SECRET=your-jwt-secret-key-change-in-production-min-32-chars
 
+# =============================================================================
 # Application Settings
+# =============================================================================
 NODE_ENV=production
 PORT=3000
-VITE_APP_TITLE=Ortho Innovations
+VITE_APP_TITLE=Scoliologic Patient App
 VITE_APP_LOGO=
 
+# =============================================================================
 # OAuth Configuration (опционально)
+# =============================================================================
 OAUTH_SERVER_URL=
 VITE_OAUTH_PORTAL_URL=
 OWNER_NAME=
 OWNER_OPEN_ID=
 
+# =============================================================================
+# ЕСИА (Госуслуги) Configuration
+# =============================================================================
+# Для получения доступа к ЕСИА необходимо зарегистрировать ИС на технологическом портале
+# https://esia.gosuslugi.ru/console/tech
+
+# Client ID вашей информационной системы в ЕСИА
+ESIA_CLIENT_ID=
+
+# URL для редиректа после авторизации
+ESIA_REDIRECT_URI=https://your-domain.ru/api/esia/callback
+
+# Запрашиваемые scope (разделённые пробелом)
+# Доступные: openid, fullname, birthdate, gender, snils, inn, id_doc, email, mobile
+ESIA_SCOPE=openid fullname snils birthdate gender
+
+# Окружение ЕСИА: test (тестовый контур) или prod (продуктивный)
+ESIA_ENVIRONMENT=test
+
+# Путь к сертификату и приватному ключу для подписи запросов
+ESIA_CERTIFICATE_PATH=/path/to/certificate.pem
+ESIA_PRIVATE_KEY_PATH=/path/to/private_key.pem
+
+# =============================================================================
+# Ollama AI Configuration (для AI-ассистента)
+# =============================================================================
+# URL сервера Ollama в локальной сети
+OLLAMA_BASE_URL=http://localhost:11434
+
+# Модель для использования (рекомендуется llama3.2 или mistral)
+OLLAMA_MODEL=llama3.2
+
+# Системный промпт для медицинского ассистента
+OLLAMA_SYSTEM_PROMPT=Ты медицинский ассистент клиники Scoliologic. Помогай пациентам с вопросами о лечении сколиоза, ношении корсета и упражнениях ЛФК. Отвечай на русском языке.
+
+# =============================================================================
+# МИС (Медицинская информационная система) Integration
+# =============================================================================
+# URL API медицинской информационной системы
+MIS_API_URL=
+
+# API ключ для доступа к МИС
+MIS_API_KEY=
+
+# Тип МИС (1c_medicina, medialog, infoclinica, custom)
+MIS_TYPE=custom
+
+# =============================================================================
 # Forge API (опционально)
+# =============================================================================
 BUILT_IN_FORGE_API_KEY=
 BUILT_IN_FORGE_API_URL=
 VITE_FRONTEND_FORGE_API_KEY=
 VITE_FRONTEND_FORGE_API_URL=
 
+# =============================================================================
 # Analytics (опционально)
+# =============================================================================
 VITE_ANALYTICS_ENDPOINT=
 VITE_ANALYTICS_WEBSITE_ID=
 
+# =============================================================================
 # Firebase Push Notifications (опционально)
+# =============================================================================
 VITE_FIREBASE_API_KEY=
 VITE_FIREBASE_AUTH_DOMAIN=
 VITE_FIREBASE_PROJECT_ID=
@@ -45,5 +107,7 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 VITE_FIREBASE_VAPID_KEY=
 
+# =============================================================================
 # App ID (опционально)
+# =============================================================================
 VITE_APP_ID=
