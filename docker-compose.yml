@@ -144,12 +144,16 @@ services:
     #           capabilities: [gpu]
 
   # ---------------------------------------------------------------------------
-  # Pull-агент - GitOps автообновление
+  # Pull-агент - GitOps автообновление (Secure Version)
+  # ---------------------------------------------------------------------------
+  # ВНИМАНИЕ: Используется безопасная версия с ограниченным доступом к Docker API
+  # Разрешённые операции: build, up, restart только для сервиса 'app'
+  # Защищённые сервисы: postgres, redis, ollama (нельзя удалить/остановить)
   # ---------------------------------------------------------------------------
   pull-agent:
     build:
       context: ./deploy/pull-agent
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.secure
     container_name: scoliologic-pull-agent
     restart: unless-stopped
     environment:
@@ -165,14 +169,29 @@ services:
       - AUTO_DEPLOY=${AUTO_DEPLOY:-true}
       - HEALTH_CHECK_URL=http://app:3000/api/health
       - ROLLBACK_ON_FAILURE=${ROLLBACK_ON_FAILURE:-true}
+      # Безопасность Docker Proxy
+      - ALLOWED_SERVICES=app
+      - PROTECTED_SERVICES=postgres,redis,ollama
+      - COMPOSE_PROJECT_NAME=scoliologic
     volumes:
+      # Docker socket монтируется только для чтения
+      # Все операции проходят через SecureDockerProxy
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./:/app/repo
+      - ./:/app/repo:ro
       - pull-agent-data:/app/data
     networks:
       - scoliologic-network
     depends_on:
       - app
+    # Ограничение ресурсов для безопасности
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
 
   # ---------------------------------------------------------------------------
   # Nginx - Reverse Proxy (профиль nginx)

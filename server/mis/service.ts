@@ -3,6 +3,8 @@
  * 
  * Обеспечивает получение данных о пациентах, изделиях,
  * приёмах и документах из МИС клиники.
+ * 
+ * Использует Redis для персистентного кэширования.
  */
 
 import {
@@ -15,31 +17,90 @@ import {
   DeviceType,
   DeviceStatus,
 } from "./config";
+import {
+  cacheGet,
+  cacheSet,
+  cacheDelPattern,
+  isRedisConnected,
+} from "../lib/redis";
 
-// Простой in-memory кэш (в продакшене использовать Redis)
-const cache = new Map<string, { data: any; expiresAt: number }>();
+// Fallback in-memory кэш (используется если Redis недоступен)
+const memoryCache = new Map<string, { data: any; expiresAt: number }>();
+
+// Префикс для ключей MIS
+const CACHE_PREFIX = "mis:";
+
+// TTL для разных типов данных (в секундах)
+const TTL = {
+  devices: 300,      // 5 минут
+  device: 300,       // 5 минут
+  patient: 600,      // 10 минут
+  appointments: 60,  // 1 минута
+  documents: 300,    // 5 минут
+};
 
 /**
- * Получение данных из кэша
+ * Получение данных из кэша (Redis или in-memory fallback)
  */
-function getFromCache<T>(key: string): T | null {
-  const cached = cache.get(key);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data as T;
+async function getFromCache<T>(key: string): Promise<T | null> {
+  const fullKey = `${CACHE_PREFIX}${key}`;
+  
+  // Пробуем Redis
+  if (isRedisConnected()) {
+    const cached = await cacheGet<T>(fullKey);
+    if (cached !== null) {
+      return cached;
+    }
   }
-  cache.delete(key);
+  
+  // Fallback на in-memory
+  const memoryCached = memoryCache.get(fullKey);
+  if (memoryCached && memoryCached.expiresAt > Date.now()) {
+    return memoryCached.data as T;
+  }
+  
+  memoryCache.delete(fullKey);
   return null;
 }
 
 /**
- * Сохранение данных в кэш
+ * Сохранение данных в кэш (Redis + in-memory fallback)
  */
-function setCache(key: string, data: any, ttl?: number): void {
+async function setToCache(key: string, data: any, ttl: number): Promise<void> {
   if (!misConfig.enableCache) return;
-  cache.set(key, {
+  
+  const fullKey = `${CACHE_PREFIX}${key}`;
+  
+  // Сохраняем в Redis
+  if (isRedisConnected()) {
+    await cacheSet(fullKey, data, { ttl });
+  }
+  
+  // Также сохраняем в memory cache как fallback
+  memoryCache.set(fullKey, {
     data,
-    expiresAt: Date.now() + (ttl || misConfig.cacheTTL) * 1000,
+    expiresAt: Date.now() + ttl * 1000,
   });
+}
+
+/**
+ * Очистка кэша по паттерну
+ */
+async function invalidateCache(pattern: string): Promise<void> {
+  const fullPattern = `${CACHE_PREFIX}${pattern}`;
+  
+  // Очищаем Redis
+  if (isRedisConnected()) {
+    await cacheDelPattern(`${fullPattern}*`);
+  }
+  
+  // Очищаем memory cache
+  const keys = Array.from(memoryCache.keys());
+  for (const key of keys) {
+    if (key.startsWith(fullPattern)) {
+      memoryCache.delete(key);
+    }
+  }
 }
 
 /**
@@ -141,8 +202,8 @@ export async function getPatientDevices(
     includeArchived?: boolean;
   }
 ): Promise<MISResponse<MISDevice[]>> {
-  const cacheKey = `devices:${patientId}:${JSON.stringify(options)}`;
-  const cached = getFromCache<MISDevice[]>(cacheKey);
+  const cacheKey = `devices:${patientId}:${JSON.stringify(options || {})}`;
+  const cached = await getFromCache<MISDevice[]>(cacheKey);
   if (cached) {
     return { success: true, data: cached };
   }
@@ -161,7 +222,7 @@ export async function getPatientDevices(
   const result = await fetchMIS<MISDevice[]>(endpoint);
   
   if (result.success && result.data) {
-    setCache(cacheKey, result.data);
+    await setToCache(cacheKey, result.data, TTL.devices);
   }
   
   return result;
@@ -172,7 +233,7 @@ export async function getPatientDevices(
  */
 export async function getDevice(deviceId: string): Promise<MISResponse<MISDevice>> {
   const cacheKey = `device:${deviceId}`;
-  const cached = getFromCache<MISDevice>(cacheKey);
+  const cached = await getFromCache<MISDevice>(cacheKey);
   if (cached) {
     return { success: true, data: cached };
   }
@@ -180,7 +241,7 @@ export async function getDevice(deviceId: string): Promise<MISResponse<MISDevice
   const result = await fetchMIS<MISDevice>(`/devices/${deviceId}`);
   
   if (result.success && result.data) {
-    setCache(cacheKey, result.data);
+    await setToCache(cacheKey, result.data, TTL.device);
   }
   
   return result;
@@ -193,7 +254,7 @@ export async function getPatient(
   patientId: string
 ): Promise<MISResponse<MISPatient>> {
   const cacheKey = `patient:${patientId}`;
-  const cached = getFromCache<MISPatient>(cacheKey);
+  const cached = await getFromCache<MISPatient>(cacheKey);
   if (cached) {
     return { success: true, data: cached };
   }
@@ -201,7 +262,7 @@ export async function getPatient(
   const result = await fetchMIS<MISPatient>(`/patients/${patientId}`);
   
   if (result.success && result.data) {
-    setCache(cacheKey, result.data, 600); // 10 минут для данных пациента
+    await setToCache(cacheKey, result.data, TTL.patient);
   }
   
   return result;
@@ -233,8 +294,8 @@ export async function getPatientAppointments(
     status?: MISAppointment["status"];
   }
 ): Promise<MISResponse<MISAppointment[]>> {
-  const cacheKey = `appointments:${patientId}:${JSON.stringify(options)}`;
-  const cached = getFromCache<MISAppointment[]>(cacheKey);
+  const cacheKey = `appointments:${patientId}:${JSON.stringify(options || {})}`;
+  const cached = await getFromCache<MISAppointment[]>(cacheKey);
   if (cached) {
     return { success: true, data: cached };
   }
@@ -253,7 +314,7 @@ export async function getPatientAppointments(
   const result = await fetchMIS<MISAppointment[]>(endpoint);
   
   if (result.success && result.data) {
-    setCache(cacheKey, result.data, 60); // 1 минута для приёмов
+    await setToCache(cacheKey, result.data, TTL.appointments);
   }
   
   return result;
@@ -268,8 +329,8 @@ export async function getPatientDocuments(
     type?: MISDocument["type"];
   }
 ): Promise<MISResponse<MISDocument[]>> {
-  const cacheKey = `documents:${patientId}:${JSON.stringify(options)}`;
-  const cached = getFromCache<MISDocument[]>(cacheKey);
+  const cacheKey = `documents:${patientId}:${JSON.stringify(options || {})}`;
+  const cached = await getFromCache<MISDocument[]>(cacheKey);
   if (cached) {
     return { success: true, data: cached };
   }
@@ -282,7 +343,7 @@ export async function getPatientDocuments(
   const result = await fetchMIS<MISDocument[]>(endpoint);
   
   if (result.success && result.data) {
-    setCache(cacheKey, result.data);
+    await setToCache(cacheKey, result.data, TTL.documents);
   }
   
   return result;
@@ -307,6 +368,11 @@ export async function syncPatientData(
   const syncedItems: string[] = [];
   
   try {
+    // Инвалидируем кэш перед синхронизацией
+    await invalidateCache(`devices:${patientId}`);
+    await invalidateCache(`appointments:${patientId}`);
+    await invalidateCache(`documents:${patientId}`);
+    
     // Синхронизируем изделия
     const devicesResult = await getPatientDevices(patientId);
     if (devicesResult.success && devicesResult.data) {
@@ -336,18 +402,15 @@ export async function syncPatientData(
 /**
  * Очистка кэша
  */
-export function clearCache(pattern?: string): void {
+export async function clearCache(pattern?: string): Promise<void> {
   if (!pattern) {
-    cache.clear();
+    // Очищаем весь MIS кэш
+    await invalidateCache("");
+    memoryCache.clear();
     return;
   }
   
-  const keys = Array.from(cache.keys());
-  for (const key of keys) {
-    if (key.includes(pattern)) {
-      cache.delete(key);
-    }
-  }
+  await invalidateCache(pattern);
 }
 
 /**
@@ -376,4 +439,17 @@ export async function checkMISHealth(): Promise<{
       error: error.message,
     };
   }
+}
+
+/**
+ * Получение статистики кэша
+ */
+export function getCacheInfo(): {
+  memoryCacheSize: number;
+  redisConnected: boolean;
+} {
+  return {
+    memoryCacheSize: memoryCache.size,
+    redisConnected: isRedisConnected(),
+  };
 }
