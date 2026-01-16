@@ -5,9 +5,10 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { LoadingBar } from "./components/LoadingBar";
 import { OfflineIndicator } from "./components/OfflineIndicator";
+import { analytics } from "./lib/analytics";
 
 // Loading component for lazy loaded pages - Scoliologic themed
 const PageLoader = () => (
@@ -88,6 +89,11 @@ function Router() {
 }
 
 function App() {
+  // Инициализация аналитики
+  useEffect(() => {
+    analytics.init();
+  }, []);
+
   return (
     <ErrorBoundary level="critical">
       <ThemeProvider defaultTheme="light">
