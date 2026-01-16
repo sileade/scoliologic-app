@@ -1,13 +1,13 @@
 /**
  * Страница мессенджера
- * Рефакторинг: разделение на компоненты ChatList, ChatView, MessageBubble, MessageInput
+ * Упрощённая версия с чистым дизайном
  */
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { usePullToRefresh } from '@/lib/gestures';
-import { ChatList, ChatView, type Chat, type Message } from '@/components/messenger';
+import { ChatList, ChatView } from '@/components/messenger';
 import { useMessenger } from '@/hooks/useMessenger';
-import { Lock, Sparkles } from 'lucide-react';
+import { Shield, Sparkles } from 'lucide-react';
 
 export default function Messages() {
   const { language } = useLanguage();
@@ -51,35 +51,48 @@ export default function Messages() {
       {/* Pull to refresh indicator */}
       {pullDistance > 0 && (
         <div 
-          className="absolute top-0 left-0 right-0 flex justify-center py-2 transition-opacity"
+          className="absolute top-0 left-0 right-0 flex justify-center py-2 transition-opacity z-10"
           style={{ 
             opacity: Math.min(pullDistance / 80, 1),
             transform: `translateY(${Math.min(pullDistance / 2, 40)}px)` 
           }}
         >
-          <div className={`w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full ${isRefreshing ? 'animate-spin' : ''}`} />
+          <div className={`w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full ${isRefreshing ? 'animate-spin' : ''}`} />
         </div>
       )}
 
-      {/* Header */}
-      <header className="mobile-header bg-white border-b border-gray-100">
-        <h1 className="text-xl font-bold text-foreground">
-          {language === 'ru' ? 'Сообщения' : 'Messages'}
-        </h1>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Lock size={12} />
-          <span>E2EE</span>
+      {/* Simplified Header */}
+      <header className="px-4 pt-safe-top pb-3 bg-white border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-gray-900">
+            {language === 'ru' ? 'Сообщения' : 'Messages'}
+          </h1>
+          <div className="flex items-center gap-1 text-xs text-gray-500">
+            <Shield size={12} />
+            <span>E2EE</span>
+          </div>
         </div>
       </header>
 
       {/* Content */}
-      <main className="mobile-content p-4 space-y-4">
-        {/* AI Assistant Banner */}
-        <AIAssistantBanner language={language} />
+      <main className="mobile-content px-4 py-4 space-y-4">
+        {/* AI Assistant Card - компактный */}
+        <AIAssistantCard language={language} onSelect={() => selectChat({
+          id: 'ai-assistant',
+          name: 'AI-ассистент',
+          role: 'AI',
+          avatar: '✨',
+          lastMessage: language === 'ru' ? 'Задайте любой вопрос' : 'Ask any question',
+          lastMessageTime: '',
+          unread: 0,
+          online: true,
+          type: 'support',
+          aiActive: true,
+        })} />
 
         {/* Chat List */}
         <ChatList
-          chats={chats}
+          chats={chats.filter(c => c.type !== 'support')}
           onSelectChat={selectChat}
           onArchiveChat={archiveChat}
           isLoading={isLoadingChats}
@@ -92,26 +105,46 @@ export default function Messages() {
 }
 
 /**
- * Баннер AI-ассистента
+ * Компактная карточка AI-ассистента
  */
-function AIAssistantBanner({ language }: { language: 'ru' | 'en' }) {
+function AIAssistantCard({ 
+  language, 
+  onSelect 
+}: { 
+  language: 'ru' | 'en';
+  onSelect: () => void;
+}) {
+  const haptic = () => {
+    if (navigator.vibrate) navigator.vibrate(10);
+  };
+
   return (
-    <div className="bg-gradient-to-r from-teal-500 to-teal-600 rounded-2xl p-4 text-white shadow-lg">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-          <Sparkles size={20} />
+    <button
+      className="w-full bg-gradient-to-r from-teal-500 to-teal-600 rounded-2xl p-4 text-white text-left transition-all active:scale-[0.98] shadow-sm"
+      onClick={() => {
+        haptic();
+        onSelect();
+      }}
+    >
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+          <Sparkles size={22} />
         </div>
-        <div>
-          <h3 className="font-semibold mb-1">
-            {language === 'ru' ? 'AI-ассистент активен' : 'AI Assistant Active'}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-sm">
+            {language === 'ru' ? 'AI-ассистент' : 'AI Assistant'}
           </h3>
-          <p className="text-sm text-white/80">
+          <p className="text-xs text-white/70 truncate">
             {language === 'ru' 
-              ? 'Отвечает на вопросы пока врач недоступен'
-              : 'Answers questions while doctor is unavailable'}
+              ? 'Ответы на вопросы о лечении'
+              : 'Answers about treatment'}
           </p>
         </div>
+        <div className="flex items-center gap-1 text-xs text-white/60">
+          <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+          <span>{language === 'ru' ? 'онлайн' : 'online'}</span>
+        </div>
       </div>
-    </div>
+    </button>
   );
 }

@@ -1,26 +1,26 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { trpc } from '@/lib/trpc';
 import { getTimeBasedGreeting } from '@/lib/greeting';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { 
   CalendarIcon, 
   CheckIcon, 
   SpineIcon, 
-  DocumentIcon, 
   MessageIcon,
   CorsetIcon,
 } from '@/components/NotionIcons';
 
 export default function Dashboard() {
-  const { language, t } = useLanguage();
+  const { language } = useLanguage();
   const [, setLocation] = useLocation();
   
   // Fetch data
   const queryOptions = { staleTime: 30000, refetchOnWindowFocus: false, retry: 1 };
-  const { data: dashboardData, isLoading, refetch } = trpc.dashboard.getSummary.useQuery(undefined, queryOptions);
+  const { data: dashboardData, refetch } = trpc.dashboard.getSummary.useQuery(undefined, queryOptions);
   const { data: todaysTasks, refetch: refetchTasks } = trpc.rehabilitation.getTodaysTasks.useQuery(undefined, queryOptions);
   const { data: profile } = trpc.patient.getProfile.useQuery(undefined, queryOptions);
   
@@ -43,88 +43,93 @@ export default function Dashboard() {
     if (navigator.vibrate) navigator.vibrate(10);
   };
 
-  // Quick actions
+  // Quick actions - только 4 основных
   const quickActions = [
     { 
       icon: MessageIcon, 
       label: language === 'ru' ? 'Чат' : 'Chat', 
       href: '/messages',
-      gradient: 'from-teal-500 to-teal-600',
-      badge: 3
+      color: 'bg-teal-500',
+      badge: 0
     },
     { 
       icon: CalendarIcon, 
       label: language === 'ru' ? 'Запись' : 'Book', 
       href: '/appointments',
-      gradient: 'from-teal-500 to-teal-600'
-    },
-    { 
-      icon: DocumentIcon, 
-      label: language === 'ru' ? 'Документы' : 'Docs', 
-      href: '/documents',
-      gradient: 'from-orange-500 to-orange-600'
+      color: 'bg-blue-500'
     },
     { 
       icon: CorsetIcon, 
       label: language === 'ru' ? 'Изделия' : 'Devices', 
       href: '/devices',
-      gradient: 'from-lime-500 to-lime-600'
+      color: 'bg-orange-500'
+    },
+    { 
+      icon: CheckIcon, 
+      label: language === 'ru' ? 'Задания' : 'Tasks', 
+      href: '/rehabilitation',
+      color: 'bg-lime-500'
     },
   ];
 
   return (
-    <div className="mobile-page bg-background">
-      {/* Header */}
-      <header className="mobile-header bg-white">
-        <div>
-          <p className="text-xs text-muted-foreground">
-            {greetingData.greeting[language]}
-          </p>
-          <h1 className="text-lg font-bold text-foreground">
-            {patientName.split(' ')[0]}
-          </h1>
+    <div className="mobile-page bg-gray-50">
+      {/* Simplified Header */}
+      <header className="px-4 pt-safe-top pb-4 bg-white border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-500">
+              {greetingData.greeting[language]}
+            </p>
+            <h1 className="text-xl font-bold text-gray-900">
+              {patientName.split(' ')[0]}
+            </h1>
+          </div>
+          <button 
+            className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center transition-colors active:bg-gray-200"
+            onClick={() => {
+              haptic();
+              setLocation('/profile');
+            }}
+            aria-label={language === 'ru' ? 'Профиль' : 'Profile'}
+          >
+            <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </button>
         </div>
-        <button 
-          className="btn-icon"
-          onClick={() => {
-            haptic();
-            setLocation('/profile');
-          }}
-        >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-        </button>
       </header>
 
       {/* Content */}
       <PullToRefresh onRefresh={handleRefresh} className="mobile-content has-bottom-nav">
-        {/* Day counter */}
-        <div className="text-center mb-6">
+        {/* Day counter - компактный */}
+        <div className="flex justify-center py-4">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-teal-50 rounded-full">
-            <SpineIcon size={18} className="text-teal-600" />
+            <SpineIcon size={16} className="text-teal-600" />
             <span className="text-sm font-medium text-teal-700">
-              {language === 'ru' ? `День ${dayNumber} лечения` : `Day ${dayNumber}`}
+              {language === 'ru' ? `День ${dayNumber}` : `Day ${dayNumber}`}
             </span>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <section className="mb-6">
-          <div className="grid grid-cols-4 gap-3">
+        {/* Quick Actions - 4 кнопки в ряд */}
+        <section className="px-4 mb-6">
+          <div className="grid grid-cols-4 gap-2">
             {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
                 <Link key={index} href={action.href}>
                   <button
-                    className={`w-full quick-action-card bg-gradient-to-br ${action.gradient} text-white relative`}
+                    className="w-full flex flex-col items-center py-3 px-2 bg-white rounded-2xl shadow-sm border border-gray-100 transition-all active:scale-95 relative"
                     onClick={haptic}
                   >
-                    <Icon size={24} className="mb-1" />
-                    <span className="text-[11px] font-medium">{action.label}</span>
-                    {action.badge && (
-                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
-                        {action.badge}
+                    <div className={`w-10 h-10 ${action.color} rounded-xl flex items-center justify-center mb-2`}>
+                      <Icon size={20} className="text-white" />
+                    </div>
+                    <span className="text-xs font-medium text-gray-700">{action.label}</span>
+                    {action.badge !== undefined && action.badge > 0 && (
+                      <span className="absolute top-2 right-2 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                        {action.badge > 9 ? '9+' : action.badge}
                       </span>
                     )}
                   </button>
@@ -134,58 +139,29 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Next Appointment */}
-        {nextAppointment && (
-          <section className="mb-4">
-            <Link href="/appointments">
-              <div className="mobile-card card-interactive" onClick={haptic}>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-teal-100 flex items-center justify-center flex-shrink-0">
-                    <CalendarIcon size={24} className="text-teal-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                      {language === 'ru' ? 'Ближайший приём' : 'Next'}
-                    </p>
-                    <p className="font-semibold truncate">{nextAppointment.doctorName || 'Врач'}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(nextAppointment.scheduledAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { 
-                        weekday: 'short', day: 'numeric', month: 'short' 
-                      })}
-                    </p>
-                  </div>
-                  <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-            </Link>
-          </section>
-        )}
-
-        {/* Daily Progress */}
-        <section className="mb-4">
+        {/* Daily Progress - упрощённый */}
+        <section className="px-4 mb-4">
           <Link href="/rehabilitation">
-            <div className="mobile-card card-interactive" onClick={haptic}>
+            <div 
+              className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 transition-all active:scale-[0.98]"
+              onClick={haptic}
+            >
               <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-lime-100 flex items-center justify-center">
-                    <CheckIcon size={20} className="text-lime-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-foreground">
-                      {language === 'ru' ? 'Задания' : 'Tasks'}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {completedTasks} / {totalTasks}
-                    </p>
-                  </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {language === 'ru' ? 'Сегодня' : 'Today'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {completedTasks} {language === 'ru' ? 'из' : 'of'} {totalTasks} {language === 'ru' ? 'заданий' : 'tasks'}
+                  </p>
                 </div>
-                <span className="text-2xl font-bold text-lime-600">{progressPercent}%</span>
+                <div className="text-right">
+                  <span className="text-2xl font-bold text-teal-600">{progressPercent}%</span>
+                </div>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-gradient-to-r from-lime-400 to-lime-500 rounded-full transition-all duration-500"
+                  className="h-full bg-teal-500 rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
@@ -193,92 +169,107 @@ export default function Dashboard() {
           </Link>
         </section>
 
-        {/* Treatment Status */}
-        <section className="mb-4">
-          <Link href="/devices">
-            <div className="mobile-card card-interactive bg-gradient-to-br from-teal-50 to-teal-100" onClick={haptic}>
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-teal-200 flex items-center justify-center">
-                  <SpineIcon size={24} className="text-teal-700" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-teal-800">
-                    {language === 'ru' ? 'Корсетотерапия' : 'Corset Therapy'}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-                    <span className="text-sm text-teal-600">
-                      {language === 'ru' ? 'Активно' : 'Active'}
-                    </span>
+        {/* Next Appointment - если есть */}
+        {nextAppointment ? (
+          <section className="px-4 mb-4">
+            <Link href="/appointments">
+              <div 
+                className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 transition-all active:scale-[0.98]"
+                onClick={haptic}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    <CalendarIcon size={22} className="text-blue-600" />
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">
+                      {language === 'ru' ? 'Ближайший приём' : 'Next appointment'}
+                    </p>
+                    <p className="font-semibold text-gray-900 truncate">
+                      {nextAppointment.doctorName || 'Врач'}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {new Date(nextAppointment.scheduledAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { 
+                        weekday: 'short', day: 'numeric', month: 'short' 
+                      })}
+                    </p>
+                  </div>
+                  <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </div>
-                <svg className="w-5 h-5 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
               </div>
-            </div>
-          </Link>
-        </section>
+            </Link>
+          </section>
+        ) : (
+          <section className="px-4 mb-4">
+            <EmptyState
+              icon={<CalendarIcon size={32} className="text-gray-400" />}
+              title={language === 'ru' ? 'Нет записей' : 'No appointments'}
+              description={language === 'ru' ? 'Запишитесь на приём к врачу' : 'Book an appointment'}
+              action={{
+                label: language === 'ru' ? 'Записаться' : 'Book now',
+                onClick: () => setLocation('/appointments')
+              }}
+              compact
+            />
+          </section>
+        )}
 
-        {/* AI Assistant */}
-        <section className="mb-4">
-          <Link href="/messages">
-            <div 
-              className="mobile-card card-interactive bg-gradient-to-br from-teal-500 to-teal-600 text-white"
-              onClick={haptic}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
-                  <span className="text-2xl">✨</span>
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold">AI-ассистент</p>
-                  <p className="text-sm text-white/80">
-                    {language === 'ru' ? 'Задайте вопрос' : 'Ask a question'}
-                  </p>
-                </div>
-                <svg className="w-5 h-5 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
+        {/* Tasks Preview - упрощённый */}
+        {todaysTasks && todaysTasks.length > 0 ? (
+          <section className="px-4 mb-20">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-500">
+                {language === 'ru' ? 'Задания на сегодня' : 'Today\'s tasks'}
+              </h2>
+              <Link href="/rehabilitation">
+                <span className="text-xs text-teal-600 font-medium">
+                  {language === 'ru' ? 'Все' : 'All'}
+                </span>
+              </Link>
             </div>
-          </Link>
-        </section>
-
-        {/* Tasks Preview */}
-        {todaysTasks && todaysTasks.length > 0 && (
-          <section className="mb-20">
-            <h2 className="text-sm font-semibold text-muted-foreground mb-3 px-1">
-              {language === 'ru' ? 'Ближайшие задания' : 'Upcoming'}
-            </h2>
             <div className="space-y-2">
               {todaysTasks.slice(0, 3).map((task) => (
                 <Link key={task.id} href="/rehabilitation">
                   <div 
-                    className={`mobile-card card-interactive ${task.completed ? 'opacity-60' : ''}`}
+                    className={`bg-white rounded-xl p-3 shadow-sm border border-gray-100 transition-all active:scale-[0.98] ${
+                      task.completed ? 'opacity-60' : ''
+                    }`}
                     onClick={haptic}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                         task.completed ? 'bg-teal-100' : 'bg-gray-100'
                       }`}>
                         {task.completed ? (
-                          <CheckIcon size={18} className="text-teal-600" />
+                          <CheckIcon size={16} className="text-teal-600" />
                         ) : (
-                          <span className="w-4 h-4 rounded-full border-2 border-gray-300" />
+                          <span className="w-3 h-3 rounded-full border-2 border-gray-300" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`font-medium truncate ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                        <p className={`text-sm font-medium truncate ${
+                          task.completed ? 'line-through text-gray-400' : 'text-gray-900'
+                        }`}>
                           {task.title}
                         </p>
-                        <p className="text-xs text-muted-foreground">{task.duration} мин</p>
                       </div>
+                      <span className="text-xs text-gray-400">{task.duration} мин</span>
                     </div>
                   </div>
                 </Link>
               ))}
             </div>
+          </section>
+        ) : (
+          <section className="px-4 mb-20">
+            <EmptyState
+              icon={<CheckIcon size={32} className="text-gray-400" />}
+              title={language === 'ru' ? 'Нет заданий' : 'No tasks'}
+              description={language === 'ru' ? 'На сегодня заданий нет' : 'No tasks for today'}
+              compact
+            />
           </section>
         )}
       </PullToRefresh>
