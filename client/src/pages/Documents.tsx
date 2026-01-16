@@ -143,7 +143,7 @@ export default function Documents() {
             </p>
           </div>
           <div className="bg-white rounded-2xl p-4 text-center shadow-sm">
-            <p className="text-2xl font-bold text-purple-500">1</p>
+            <p className="text-2xl font-bold text-teal-500">1</p>
             <p className="text-xs text-muted-foreground mt-1">ИПР</p>
           </div>
         </div>
@@ -171,7 +171,7 @@ export default function Documents() {
                 leftAction={<Download size={20} />}
                 rightAction={<Eye size={20} />}
                 leftColor="bg-teal-500"
-                rightColor="bg-purple-500"
+                rightColor="bg-teal-600"
               >
                 <div
                   className={cn(

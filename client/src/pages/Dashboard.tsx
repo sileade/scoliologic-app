@@ -49,7 +49,7 @@ export default function Dashboard() {
       icon: MessageIcon, 
       label: language === 'ru' ? 'Чат' : 'Chat', 
       href: '/messages',
-      gradient: 'from-purple-500 to-purple-600',
+      gradient: 'from-teal-500 to-teal-600',
       badge: 3
     },
     { 
@@ -224,7 +224,7 @@ export default function Dashboard() {
         <section className="mb-4">
           <Link href="/messages">
             <div 
-              className="mobile-card card-interactive bg-gradient-to-br from-purple-500 to-purple-600 text-white"
+              className="mobile-card card-interactive bg-gradient-to-br from-teal-500 to-teal-600 text-white"
               onClick={haptic}
             >
               <div className="flex items-center gap-4">

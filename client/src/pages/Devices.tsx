@@ -100,7 +100,7 @@ export default function Devices() {
       case 'manufacturing':
         return {
           label: language === 'ru' ? 'Изготовление' : 'Manufacturing',
-          color: 'bg-purple-100 text-purple-700',
+          color: 'bg-teal-100 text-teal-700',
           icon: null
         };
       case 'ready':
@@ -212,8 +212,8 @@ export default function Devices() {
             )}
 
             {selectedDevice.status === 'manufacturing' && (
-              <div className="flex items-center justify-center gap-3 py-8 text-purple-600">
-                <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+              <div className="flex items-center justify-center gap-3 py-8 text-teal-600">
+                <div className="w-5 h-5 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
                 <span className="font-medium">{language === 'ru' ? 'В процессе изготовления' : 'Being manufactured'}</span>
               </div>
             )}
@@ -314,7 +314,7 @@ export default function Devices() {
             </p>
           </div>
           <div className="bg-white rounded-2xl p-4 text-center shadow-sm">
-            <p className="text-2xl font-bold text-purple-500">
+            <p className="text-2xl font-bold text-teal-500">
               {mockDevices.filter(d => d.status === 'manufacturing').length}
             </p>
             <p className="text-xs text-muted-foreground mt-1">

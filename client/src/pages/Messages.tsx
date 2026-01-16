@@ -245,7 +245,7 @@ export default function Messages() {
                     <div className={cn(
                       "w-12 h-12 rounded-full flex items-center justify-center font-semibold text-lg",
                       chat.avatar === '✨' 
-                        ? "bg-gradient-to-br from-purple-500 to-purple-600 text-white"
+                        ? "bg-gradient-to-br from-teal-500 to-teal-600 text-white"
                         : "bg-teal-100 text-teal-700"
                     )}>
                       {chat.avatar}
@@ -261,7 +261,7 @@ export default function Messages() {
                       <span className="font-semibold text-foreground truncate flex items-center gap-1">
                         {chat.name}
                         {chat.aiActive && chat.avatar !== '✨' && (
-                          <Bot size={14} className="text-purple-500" />
+                          <Bot size={14} className="text-teal-500" />
                         )}
                       </span>
                       <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">
@@ -310,7 +310,7 @@ export default function Messages() {
             <div className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center font-semibold",
               selectedChat.avatar === '✨'
-                ? "bg-gradient-to-br from-purple-500 to-purple-600 text-white text-lg"
+                ? "bg-gradient-to-br from-teal-500 to-teal-600 text-white text-lg"
                 : "bg-teal-100 text-teal-700"
             )}>
               {selectedChat.avatar}
@@ -327,7 +327,7 @@ export default function Messages() {
               {selectedChat.aiActive && (
                 <>
                   <span>•</span>
-                  <span className="text-purple-500 flex items-center gap-0.5">
+                  <span className="text-teal-500 flex items-center gap-0.5">
                     <Sparkles size={10} /> AI
                   </span>
                 </>
