@@ -1,5 +1,10 @@
 /**
- * tRPC роутер для защищённого мессенджера
+ * tRPC роутер для защищённого мессенджера с интегрированным AI-ассистентом
+ * 
+ * AI-ассистент:
+ * - Мониторит все сообщения пациентов
+ * - Отвечает пока врач не ответил
+ * - Возвращается через 1.5 часа если врач не отвечает
  */
 
 import { z } from "zod";
@@ -18,6 +23,8 @@ import {
   getChat,
   deleteMessage,
   getMessengerStats,
+  toggleAI,
+  getAIStatus,
 } from "./service";
 
 export const messengerRouter = router({
@@ -58,7 +65,7 @@ export const messengerRouter = router({
       );
     }),
 
-  // Создание чата с AI
+  // Создание чата с AI (прямой чат)
   createAIChat: protectedProcedure
     .input(z.object({
       model: z.string().optional(),
@@ -84,6 +91,7 @@ export const messengerRouter = router({
     }),
 
   // Отправка зашифрованного сообщения
+  // plainText передаётся для AI-анализа (опционально)
   sendMessage: protectedProcedure
     .input(z.object({
       chatId: z.string(),
@@ -93,10 +101,13 @@ export const messengerRouter = router({
       senderPublicKey: z.string(),
       messageType: z.enum(["text", "image", "file", "voice"]).default("text"),
       replyToId: z.string().optional(),
+      plainText: z.string().optional(), // Для AI-анализа
     }))
     .mutation(async ({ ctx, input }) => {
       const senderId = ctx.user.id.toString();
-      return storeMessage({
+      const isDoctor = (ctx.user as any).role === 'doctor';
+      
+      const result = await storeMessage({
         chatId: input.chatId,
         senderId,
         senderPublicKey: input.senderPublicKey,
@@ -105,7 +116,14 @@ export const messengerRouter = router({
         salt: input.salt,
         messageType: input.messageType,
         replyToId: input.replyToId,
-      });
+        plainText: input.plainText,
+      }, isDoctor);
+      
+      return {
+        message: result.message,
+        aiResponse: result.aiResponse || null,
+        aiResponded: !!result.aiResponse,
+      };
     }),
 
   // Получение сообщений чата
@@ -159,6 +177,26 @@ export const messengerRouter = router({
       return { success };
     }),
 
+  // Включение/выключение AI в чате
+  toggleAI: protectedProcedure
+    .input(z.object({
+      chatId: z.string(),
+      enabled: z.boolean(),
+    }))
+    .mutation(async ({ input }) => {
+      const success = toggleAI(input.chatId, input.enabled);
+      return { success };
+    }),
+
+  // Получение статуса AI в чате
+  getAIStatus: protectedProcedure
+    .input(z.object({
+      chatId: z.string(),
+    }))
+    .query(async ({ input }) => {
+      return getAIStatus(input.chatId);
+    }),
+
   // Статистика мессенджера (для отладки)
   stats: protectedProcedure.query(async () => {
     return getMessengerStats();
@@ -188,14 +226,6 @@ export const messengerRouter = router({
         specialty: "Ортопед-техник",
         avatar: null,
         online: true,
-      },
-      {
-        id: "ai-assistant",
-        name: "AI-ассистент",
-        specialty: "Виртуальный помощник",
-        avatar: null,
-        online: true,
-        isAI: true,
       },
     ];
   }),

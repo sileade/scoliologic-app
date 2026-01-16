@@ -507,3 +507,106 @@ export async function getAnswerWithCache(
 export function clearFAQCache(): void {
   faqCache.clear();
 }
+
+
+/**
+ * Класс-обёртка для работы с Ollama
+ * Используется в мессенджере для AI-ассистента
+ */
+export class OllamaService {
+  private config: OllamaConfig;
+
+  constructor(config?: Partial<OllamaConfig>) {
+    this.config = { ...ollamaConfig, ...config };
+  }
+
+  /**
+   * Проверка доступности сервиса
+   */
+  async isAvailable(): Promise<boolean> {
+    const health = await checkOllamaHealth();
+    return health.available;
+  }
+
+  /**
+   * Чат с AI-ассистентом
+   */
+  async chat(
+    userMessage: string,
+    systemPrompt?: string,
+    context?: Array<{ role: string; content: string }>
+  ): Promise<string | null> {
+    try {
+      // Формируем сообщения
+      const messages: OllamaMessage[] = [];
+      
+      // Добавляем контекст предыдущих сообщений
+      if (context) {
+        for (const msg of context) {
+          messages.push({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content,
+          });
+        }
+      }
+      
+      // Добавляем текущее сообщение пользователя
+      messages.push({
+        role: 'user',
+        content: userMessage,
+      });
+
+      // Используем кастомный системный промпт если передан
+      const finalSystemPrompt = systemPrompt || this.config.systemPrompt;
+      
+      const messagesWithSystem: OllamaMessage[] = [
+        { role: 'system', content: finalSystemPrompt },
+        ...messages,
+      ];
+
+      const request: OllamaChatRequest = {
+        model: this.config.defaultModel,
+        messages: messagesWithSystem,
+        stream: false,
+        options: {
+          temperature: this.config.temperature,
+          num_predict: this.config.maxTokens,
+        },
+      };
+
+      const response = await fetch(`${this.config.baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+        signal: AbortSignal.timeout(this.config.timeout),
+      });
+
+      if (!response.ok) {
+        console.error(`Ollama API error: ${response.status}`);
+        return null;
+      }
+
+      const data: OllamaResponse = await response.json();
+      return data.message?.content || null;
+      
+    } catch (error) {
+      console.error('OllamaService chat error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Быстрый ответ без контекста
+   */
+  async quickResponse(prompt: string): Promise<string | null> {
+    const result = await generate(prompt, {
+      model: this.config.defaultModel,
+      temperature: this.config.temperature,
+      maxTokens: this.config.maxTokens,
+    });
+    
+    return result.success ? result.response || null : null;
+  }
+}

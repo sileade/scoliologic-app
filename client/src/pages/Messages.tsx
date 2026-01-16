@@ -13,7 +13,7 @@ import {
   ProfileIcon,
   SparklesIcon
 } from "@/components/NotionIcons";
-import { Shield, Paperclip, Smile, MoreVertical, Phone, Video, Lock, Sparkles, Bot, Check, CheckCheck, Clock, AlertCircle, ChevronLeft, User, Info } from "lucide-react";
+import { Shield, Paperclip, Smile, MoreVertical, Phone, Video, Lock, Sparkles, Bot, Check, CheckCheck, Clock, AlertCircle, ChevronLeft, User, Info, ToggleLeft, ToggleRight, Timer } from "lucide-react";
 import { keyStore, generateKeyFingerprint, encryptMessage, decryptMessage } from "@/lib/crypto";
 
 interface Chat {
@@ -27,6 +27,9 @@ interface Chat {
   online: boolean;
   type: 'doctor' | 'ai' | 'support';
   isVerified?: boolean;
+  aiActive?: boolean; // AI активен в этом чате
+  lastDoctorResponse?: Date; // Время последнего ответа врача
+  aiWillReturnAt?: Date; // Когда AI вернётся
 }
 
 interface Message {
@@ -38,21 +41,11 @@ interface Message {
   status: 'sending' | 'sent' | 'delivered' | 'read' | 'error';
   isEncrypted: boolean;
   isAI?: boolean;
+  senderName?: string;
 }
 
-// Mock data
+// Mock data - теперь AI интегрирован во все чаты с врачами
 const mockChats: Chat[] = [
-  { 
-    id: 'ai', 
-    name: 'AI-Ассистент', 
-    role: 'Медицинский помощник • Ollama',
-    avatar: 'AI',
-    lastMessage: 'Чем могу помочь?',
-    lastMessageTime: '10:30',
-    unread: 0,
-    online: true,
-    type: 'ai'
-  },
   { 
     id: '1', 
     name: 'Иванов Иван Иванович', 
@@ -63,7 +56,8 @@ const mockChats: Chat[] = [
     unread: 2,
     online: true,
     type: 'doctor',
-    isVerified: true
+    isVerified: true,
+    aiActive: true, // AI активен по умолчанию
   },
   { 
     id: '2', 
@@ -75,7 +69,10 @@ const mockChats: Chat[] = [
     unread: 0,
     online: false,
     type: 'doctor',
-    isVerified: true
+    isVerified: true,
+    aiActive: false, // AI отключен - врач недавно отвечал
+    lastDoctorResponse: new Date(Date.now() - 30 * 60 * 1000), // 30 минут назад
+    aiWillReturnAt: new Date(Date.now() + 60 * 60 * 1000), // Через 1 час
   },
   { 
     id: '3', 
@@ -86,27 +83,18 @@ const mockChats: Chat[] = [
     lastMessageTime: '15.01',
     unread: 0,
     online: true,
-    type: 'support'
+    type: 'support',
+    aiActive: true,
   },
 ];
 
 const mockMessages: Message[] = [
-  { id: '1', text: 'Добрый день! Как вы себя чувствуете после последнего осмотра?', time: '10:15', timestamp: new Date(Date.now() - 3600000), isOwn: false, status: 'read', isEncrypted: true },
+  { id: '1', text: 'Добрый день! Как вы себя чувствуете после последнего осмотра?', time: '10:15', timestamp: new Date(Date.now() - 3600000), isOwn: false, status: 'read', isEncrypted: true, senderName: 'Иванов И.И.' },
   { id: '2', text: 'Здравствуйте! Чувствую себя хорошо, спина меньше устаёт', time: '10:20', timestamp: new Date(Date.now() - 3500000), isOwn: true, status: 'read', isEncrypted: true },
-  { id: '3', text: 'Отлично! Результаты рентгена хорошие, продолжайте носить корсет по графику', time: '10:25', timestamp: new Date(Date.now() - 3400000), isOwn: false, status: 'read', isEncrypted: true },
+  { id: 'ai-1', text: 'Отлично, что вы чувствуете улучшение! Это хороший знак. Продолжайте соблюдать режим ношения корсета. Врач ответит вам в ближайшее время.\n\n🤖 Автоматический ответ AI-ассистента', time: '10:21', timestamp: new Date(Date.now() - 3450000), isOwn: false, status: 'read', isEncrypted: true, isAI: true },
+  { id: '3', text: 'Результаты рентгена хорошие, продолжайте носить корсет по графику', time: '10:25', timestamp: new Date(Date.now() - 3400000), isOwn: false, status: 'read', isEncrypted: true, senderName: 'Иванов И.И.' },
   { id: '4', text: 'Спасибо! А когда следующий приём?', time: '10:28', timestamp: new Date(Date.now() - 3300000), isOwn: true, status: 'delivered', isEncrypted: true },
 ];
-
-const aiInitialMessage: Message = {
-  id: 'ai-init',
-  text: 'Здравствуйте! Я AI-ассистент Scoliologic на базе локальной модели Ollama. Могу ответить на вопросы о вашем лечении, упражнениях и режиме ношения корсета. Все сообщения обрабатываются локально и защищены шифрованием. Чем могу помочь?',
-  time: '10:30',
-  timestamp: new Date(),
-  isOwn: false,
-  status: 'read',
-  isEncrypted: true,
-  isAI: true
-};
 
 export default function Messages() {
   const { t, language } = useLanguage();
@@ -115,8 +103,11 @@ export default function Messages() {
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [aiTyping, setAiTyping] = useState(false);
   const [showEncryptionInfo, setShowEncryptionInfo] = useState(false);
+  const [showAIInfo, setShowAIInfo] = useState(false);
   const [keyFingerprint, setKeyFingerprint] = useState<string>('');
+  const [chats, setChats] = useState<Chat[]>(mockChats);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Инициализация ключей шифрования
@@ -140,55 +131,58 @@ export default function Messages() {
   // Загрузка сообщений при выборе чата
   useEffect(() => {
     if (selectedChat) {
-      if (selectedChat.type === 'ai') {
-        setMessages([{
-          ...aiInitialMessage,
-          text: language === 'ru' 
-            ? 'Здравствуйте! Я AI-ассистент Scoliologic на базе локальной модели Ollama. Могу ответить на вопросы о вашем лечении, упражнениях и режиме ношения корсета. Все сообщения обрабатываются локально и защищены шифрованием. Чем могу помочь?'
-            : 'Hello! I am the Scoliologic AI assistant powered by local Ollama model. I can answer questions about your treatment, exercises, and corset wearing schedule. All messages are processed locally and encrypted. How can I help?'
-        }]);
-      } else {
-        setMessages(mockMessages);
-      }
+      setMessages(mockMessages);
     }
   }, [selectedChat, language]);
+
+  // Проверка таймера возврата AI каждую минуту
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setChats(prevChats => prevChats.map(chat => {
+        if (!chat.aiActive && chat.aiWillReturnAt && new Date() >= chat.aiWillReturnAt) {
+          return { ...chat, aiActive: true, aiWillReturnAt: undefined };
+        }
+        return chat;
+      }));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getAIResponse = (userMessage: string): string => {
     const lowerMessage = userMessage.toLowerCase();
     
+    // Добавляем пометку что это AI
+    const aiSignature = language === 'ru' 
+      ? '\n\n🤖 Автоматический ответ AI-ассистента. Врач ответит вам в ближайшее время.'
+      : '\n\n🤖 Automatic AI assistant response. The doctor will reply soon.';
+    
     if (lowerMessage.includes('корсет') || lowerMessage.includes('corset') || lowerMessage.includes('носить')) {
-      return language === 'ru'
-        ? 'Корсет Шено следует носить согласно рекомендациям врача. Обычно это 20-23 часа в сутки. Важно снимать его только для гигиенических процедур и специальных упражнений. Если у вас есть дискомфорт, обязательно сообщите врачу на следующем приёме.\n\nОсновные правила:\n• Надевайте корсет на тонкую хлопковую футболку\n• Проверяйте правильность посадки перед зеркалом\n• Следите за состоянием кожи под корсетом'
-        : 'The Cheneau corset should be worn according to your doctor\'s recommendations. Usually this is 20-23 hours a day. It\'s important to remove it only for hygiene procedures and special exercises.\n\nMain rules:\n• Wear the corset over a thin cotton t-shirt\n• Check the fit in front of a mirror\n• Monitor the skin condition under the corset';
+      return (language === 'ru'
+        ? 'Корсет Шено следует носить согласно рекомендациям врача. Обычно это 20-23 часа в сутки. Важно снимать его только для гигиенических процедур и специальных упражнений.\n\nОсновные правила:\n• Надевайте корсет на тонкую хлопковую футболку\n• Проверяйте правильность посадки перед зеркалом\n• Следите за состоянием кожи под корсетом'
+        : 'The Cheneau corset should be worn according to your doctor\'s recommendations. Usually this is 20-23 hours a day.\n\nMain rules:\n• Wear the corset over a thin cotton t-shirt\n• Check the fit in front of a mirror\n• Monitor the skin condition under the corset') + aiSignature;
     }
     
     if (lowerMessage.includes('упражнен') || lowerMessage.includes('exercise') || lowerMessage.includes('лфк') || lowerMessage.includes('гимнастик')) {
-      return language === 'ru'
-        ? 'Рекомендую выполнять комплекс упражнений Шрот 2 раза в день по 30 минут. Основные упражнения:\n\n1. Дыхательная гимнастика (10 мин)\n2. Растяжка мышц спины (10 мин)\n3. Укрепляющие упражнения (10 мин)\n\nВидеоинструкции доступны в разделе "Реабилитация". Хотите, чтобы я напомнил вам о времени упражнений?'
-        : 'I recommend doing the Schroth exercise complex twice a day for 30 minutes. Main exercises:\n\n1. Breathing exercises (10 min)\n2. Back muscle stretching (10 min)\n3. Strengthening exercises (10 min)\n\nVideo instructions are available in the "Rehabilitation" section. Would you like me to remind you about exercise time?';
+      return (language === 'ru'
+        ? 'Рекомендую выполнять комплекс упражнений Шрот 2 раза в день по 30 минут:\n\n1. Дыхательная гимнастика (10 мин)\n2. Растяжка мышц спины (10 мин)\n3. Укрепляющие упражнения (10 мин)\n\nВидеоинструкции доступны в разделе "Реабилитация".'
+        : 'I recommend doing the Schroth exercise complex twice a day for 30 minutes:\n\n1. Breathing exercises (10 min)\n2. Back muscle stretching (10 min)\n3. Strengthening exercises (10 min)') + aiSignature;
     }
     
     if (lowerMessage.includes('боль') || lowerMessage.includes('pain') || lowerMessage.includes('болит') || lowerMessage.includes('дискомфорт')) {
-      return language === 'ru'
-        ? '⚠️ Если вы испытываете боль, важно определить её характер:\n\n• Небольшой дискомфорт при адаптации к корсету — это нормально (первые 2 недели)\n• Покраснение кожи в местах давления — нужна корректировка корсета\n• Острая боль или онемение — срочно обратитесь к врачу!\n\nЕсли боль не проходит более 2-3 дней, рекомендую записаться на внеплановый приём. Хотите, чтобы я помог записаться?'
-        : '⚠️ If you\'re experiencing pain, it\'s important to identify its nature:\n\n• Some discomfort when adapting to the corset is normal (first 2 weeks)\n• Skin redness at pressure points — corset adjustment needed\n• Sharp pain or numbness — see a doctor urgently!\n\nIf the pain doesn\'t go away for more than 2-3 days, I recommend scheduling an appointment. Would you like me to help you book one?';
+      return (language === 'ru'
+        ? '⚠️ Если вы испытываете боль, важно определить её характер:\n\n• Небольшой дискомфорт при адаптации к корсету — это нормально (первые 2 недели)\n• Покраснение кожи в местах давления — нужна корректировка корсета\n• Острая боль или онемение — срочно обратитесь к врачу!\n\nЕсли боль не проходит более 2-3 дней, рекомендую записаться на внеплановый приём.'
+        : '⚠️ If you\'re experiencing pain, it\'s important to identify its nature:\n\n• Some discomfort when adapting to the corset is normal (first 2 weeks)\n• Skin redness at pressure points — corset adjustment needed\n• Sharp pain or numbness — see a doctor urgently!') + aiSignature;
     }
 
     if (lowerMessage.includes('приём') || lowerMessage.includes('запис') || lowerMessage.includes('appointment') || lowerMessage.includes('врач')) {
-      return language === 'ru'
-        ? 'Для записи на приём вы можете:\n\n1. Перейти в раздел "Записи" в приложении\n2. Позвонить по телефону: +7 (495) 123-45-67\n3. Написать в этот чат вашему лечащему врачу\n\nБлижайшие свободные даты для планового осмотра: 20, 22, 25 января. Какой день вам удобен?'
-        : 'To book an appointment you can:\n\n1. Go to the "Appointments" section in the app\n2. Call: +7 (495) 123-45-67\n3. Write to your doctor in this chat\n\nNearest available dates for a routine checkup: January 20, 22, 25. Which day works for you?';
-    }
-
-    if (lowerMessage.includes('угол') || lowerMessage.includes('кобб') || lowerMessage.includes('cobb') || lowerMessage.includes('градус')) {
-      return language === 'ru'
-        ? 'Угол Кобба — это показатель степени искривления позвоночника. По вашим последним данным:\n\n📊 Текущий угол: 25°\n📈 Предыдущий: 28° (3 месяца назад)\n✅ Динамика: -3° (положительная)\n\nЭто хороший результат! Продолжайте соблюдать режим ношения корсета и выполнять упражнения.'
-        : 'The Cobb angle is a measure of spinal curvature. According to your latest data:\n\n📊 Current angle: 25°\n📈 Previous: 28° (3 months ago)\n✅ Progress: -3° (positive)\n\nThis is a good result! Continue following the corset wearing schedule and doing exercises.';
+      return (language === 'ru'
+        ? 'Для записи на приём вы можете:\n\n1. Перейти в раздел "Записи" в приложении\n2. Позвонить по телефону: +7 (495) 123-45-67\n3. Написать в этот чат — врач ответит в ближайшее время\n\nБлижайшие свободные даты: 20, 22, 25 января.'
+        : 'To book an appointment you can:\n\n1. Go to the "Appointments" section in the app\n2. Call: +7 (495) 123-45-67\n3. Write in this chat — the doctor will reply soon') + aiSignature;
     }
     
-    return language === 'ru'
-      ? 'Спасибо за ваш вопрос. Я обработал его локально на сервере Ollama. Для более точного ответа рекомендую обсудить это с вашим лечащим врачом на следующем приёме.\n\nМогу помочь с информацией о:\n• Режиме ношения корсета\n• Упражнениях и ЛФК\n• Записи на приём\n• Результатах обследований'
-      : 'Thank you for your question. I processed it locally on the Ollama server. For a more accurate answer, I recommend discussing this with your doctor at your next appointment.\n\nI can help with information about:\n• Corset wearing schedule\n• Exercises and physical therapy\n• Booking appointments\n• Examination results';
+    return (language === 'ru'
+      ? 'Спасибо за ваш вопрос. Я передам его врачу.\n\nМогу помочь с информацией о:\n• Режиме ношения корсета\n• Упражнениях и ЛФК\n• Записи на приём\n• Результатах обследований'
+      : 'Thank you for your question. I will pass it to the doctor.\n\nI can help with information about:\n• Corset wearing schedule\n• Exercises and physical therapy\n• Booking appointments\n• Examination results') + aiSignature;
   };
 
   const handleSendMessage = async () => {
@@ -221,15 +215,15 @@ export default function Messages() {
       );
     }, 600);
 
-    // AI ответ
-    if (selectedChat.type === 'ai') {
-      setIsTyping(true);
+    // AI отвечает если активен в этом чате (для чатов с врачами)
+    if (selectedChat.type === 'doctor' && selectedChat.aiActive) {
+      setAiTyping(true);
       
       // Имитация обработки на Ollama
       const thinkingTime = 1500 + Math.random() * 1500;
       
       setTimeout(() => {
-        setIsTyping(false);
+        setAiTyping(false);
         const aiResponse: Message = {
           id: (Date.now() + 1).toString(),
           text: getAIResponse(sentText),
@@ -252,7 +246,61 @@ export default function Messages() {
     }
   };
 
-  const filteredChats = mockChats.filter(chat => 
+  // Симуляция ответа врача (деактивирует AI)
+  const simulateDoctorResponse = () => {
+    if (!selectedChat) return;
+    
+    const doctorMessage: Message = {
+      id: Date.now().toString(),
+      text: language === 'ru' 
+        ? 'Добрый день! Я посмотрел ваш вопрос. Давайте обсудим подробнее.'
+        : 'Good afternoon! I looked at your question. Let\'s discuss in detail.',
+      time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date(),
+      isOwn: false,
+      status: 'read',
+      isEncrypted: true,
+      senderName: selectedChat.name
+    };
+    
+    setMessages(prev => [...prev, doctorMessage]);
+    
+    // Деактивируем AI на 1.5 часа
+    setChats(prevChats => prevChats.map(chat => {
+      if (chat.id === selectedChat.id) {
+        return {
+          ...chat,
+          aiActive: false,
+          lastDoctorResponse: new Date(),
+          aiWillReturnAt: new Date(Date.now() + 90 * 60 * 1000) // 1.5 часа
+        };
+      }
+      return chat;
+    }));
+    
+    // Обновляем selectedChat
+    setSelectedChat(prev => prev ? {
+      ...prev,
+      aiActive: false,
+      lastDoctorResponse: new Date(),
+      aiWillReturnAt: new Date(Date.now() + 90 * 60 * 1000)
+    } : null);
+  };
+
+  const toggleAI = () => {
+    if (!selectedChat) return;
+    
+    setChats(prevChats => prevChats.map(chat => {
+      if (chat.id === selectedChat.id) {
+        return { ...chat, aiActive: !chat.aiActive, aiWillReturnAt: undefined };
+      }
+      return chat;
+    }));
+    
+    setSelectedChat(prev => prev ? { ...prev, aiActive: !prev.aiActive, aiWillReturnAt: undefined } : null);
+  };
+
+  const filteredChats = chats.filter(chat => 
     chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     chat.role.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -274,13 +322,6 @@ export default function Messages() {
   };
 
   const getChatAvatar = (chat: Chat) => {
-    if (chat.type === 'ai') {
-      return (
-        <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-          <Sparkles size={20} className="text-white" />
-        </div>
-      );
-    }
     return (
       <div className={cn(
         "w-full h-full rounded-full flex items-center justify-center font-bold text-sm",
@@ -291,6 +332,20 @@ export default function Messages() {
         {chat.avatar}
       </div>
     );
+  };
+
+  const formatTimeRemaining = (date: Date): string => {
+    const diff = date.getTime() - Date.now();
+    if (diff <= 0) return language === 'ru' ? 'скоро' : 'soon';
+    
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    if (hours > 0) {
+      return language === 'ru' ? `${hours}ч ${mins}м` : `${hours}h ${mins}m`;
+    }
+    return language === 'ru' ? `${mins}м` : `${mins}m`;
   };
 
   return (
@@ -307,6 +362,23 @@ export default function Messages() {
             <div className="flex items-center gap-2 text-sm text-accent">
               <Shield size={14} />
               <span>{t("messages.encrypted")}</span>
+            </div>
+          </div>
+
+          {/* AI Info Banner */}
+          <div className="mb-4 p-3 rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+            <div className="flex items-start gap-2">
+              <Bot size={18} className="text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-purple-700 dark:text-purple-300">
+                <p className="font-medium mb-1">
+                  {language === 'ru' ? 'AI-ассистент интегрирован' : 'AI assistant integrated'}
+                </p>
+                <p className="text-purple-600 dark:text-purple-400">
+                  {language === 'ru' 
+                    ? 'AI отвечает пока врач недоступен. Возвращается через 1.5ч после ответа врача.'
+                    : 'AI responds while doctor is unavailable. Returns 1.5h after doctor\'s response.'}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -347,12 +419,19 @@ export default function Messages() {
                       <div className="flex items-center gap-1.5">
                         <p className="font-semibold text-sm truncate">{chat.name}</p>
                         {chat.isVerified && <Shield size={12} className="text-accent flex-shrink-0" />}
-                        {chat.type === 'ai' && <Bot size={12} className="text-purple-500 flex-shrink-0" />}
                       </div>
                       <span className="text-xs text-muted-foreground">{chat.lastMessageTime}</span>
                     </div>
                     <p className="text-xs text-muted-foreground truncate">{chat.role}</p>
-                    <p className="text-sm text-muted-foreground truncate mt-1">{chat.lastMessage}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-sm text-muted-foreground truncate flex-1">{chat.lastMessage}</p>
+                      {chat.type === 'doctor' && (
+                        <span className={cn(
+                          "flex-shrink-0 w-2 h-2 rounded-full",
+                          chat.aiActive ? "bg-purple-500" : "bg-gray-300"
+                        )} title={chat.aiActive ? 'AI активен' : 'AI неактивен'} />
+                      )}
+                    </div>
                   </div>
                   {chat.unread > 0 && (
                     <span className="w-5 h-5 rounded-full bg-accent text-accent-foreground text-xs font-bold flex items-center justify-center">
@@ -387,18 +466,39 @@ export default function Messages() {
                   <div className="flex items-center gap-1.5">
                     <p className="font-semibold text-sm">{selectedChat.name}</p>
                     {selectedChat.isVerified && <Shield size={12} className="text-accent" />}
-                    {selectedChat.type === 'ai' && <Bot size={12} className="text-purple-500" />}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {selectedChat.type === 'ai' 
-                      ? (language === 'ru' ? 'Ollama • Локальная обработка' : 'Ollama • Local processing')
-                      : selectedChat.online 
-                        ? (language === 'ru' ? 'В сети' : 'Online')
-                        : (language === 'ru' ? 'Был(а) недавно' : 'Last seen recently')}
+                    {selectedChat.online 
+                      ? (language === 'ru' ? 'В сети' : 'Online')
+                      : (language === 'ru' ? 'Был(а) недавно' : 'Last seen recently')}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {/* AI Status Toggle */}
+                {selectedChat.type === 'doctor' && (
+                  <button 
+                    onClick={() => setShowAIInfo(true)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                      selectedChat.aiActive 
+                        ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-500"
+                    )}
+                  >
+                    <Bot size={14} />
+                    <span>{selectedChat.aiActive 
+                      ? (language === 'ru' ? 'AI активен' : 'AI active')
+                      : (language === 'ru' ? 'AI неактивен' : 'AI inactive')
+                    }</span>
+                    {!selectedChat.aiActive && selectedChat.aiWillReturnAt && (
+                      <span className="flex items-center gap-1 text-xs opacity-70">
+                        <Timer size={10} />
+                        {formatTimeRemaining(selectedChat.aiWillReturnAt)}
+                      </span>
+                    )}
+                  </button>
+                )}
                 <button 
                   onClick={() => setShowEncryptionInfo(true)}
                   className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center hover:bg-accent/20 transition-colors"
@@ -432,12 +532,22 @@ export default function Messages() {
                 </div>
               </div>
 
-              {/* AI Notice */}
-              {selectedChat.type === 'ai' && (
+              {/* AI Integration Notice */}
+              {selectedChat.type === 'doctor' && (
                 <div className="flex justify-center">
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs">
+                  <div className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs",
+                    selectedChat.aiActive 
+                      ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-500"
+                  )}>
                     <Bot size={12} />
-                    <span>{language === 'ru' ? 'AI на базе Ollama • Локальная сеть' : 'AI powered by Ollama • Local network'}</span>
+                    <span>
+                      {selectedChat.aiActive 
+                        ? (language === 'ru' ? 'AI-ассистент отвечает пока врач недоступен' : 'AI assistant responds while doctor is unavailable')
+                        : (language === 'ru' ? 'Врач в чате • AI вернётся через ' + (selectedChat.aiWillReturnAt ? formatTimeRemaining(selectedChat.aiWillReturnAt) : '1.5ч') : 'Doctor in chat • AI returns in ' + (selectedChat.aiWillReturnAt ? formatTimeRemaining(selectedChat.aiWillReturnAt) : '1.5h'))
+                      }
+                    </span>
                   </div>
                 </div>
               )}
@@ -460,6 +570,13 @@ export default function Messages() {
                           : "bg-card border rounded-bl-md"
                     )}
                   >
+                    {/* Sender name for doctor messages */}
+                    {!message.isOwn && !message.isAI && message.senderName && (
+                      <div className="flex items-center gap-1.5 mb-1 text-accent">
+                        <User size={12} />
+                        <span className="text-xs font-medium">{message.senderName}</span>
+                      </div>
+                    )}
                     {message.isAI && (
                       <div className="flex items-center gap-1.5 mb-2 text-purple-600 dark:text-purple-400">
                         <Sparkles size={12} />
@@ -481,12 +598,13 @@ export default function Messages() {
                 </div>
               ))}
 
-              {/* Typing indicator */}
-              {isTyping && (
+              {/* AI Typing indicator */}
+              {aiTyping && (
                 <div className="flex justify-start">
                   <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl rounded-bl-md px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Sparkles size={12} className="text-purple-500" />
+                      <span className="text-xs text-purple-600 dark:text-purple-400 mr-2">AI</span>
                       <div className="flex gap-1">
                         <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                         <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -502,6 +620,26 @@ export default function Messages() {
 
             {/* Input */}
             <div className="p-4 border-t bg-card">
+              {/* Demo buttons for testing */}
+              {selectedChat.type === 'doctor' && (
+                <div className="flex gap-2 mb-3">
+                  <button 
+                    onClick={simulateDoctorResponse}
+                    className="text-xs px-3 py-1 rounded-full bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+                  >
+                    {language === 'ru' ? '🧪 Симуляция ответа врача' : '🧪 Simulate doctor response'}
+                  </button>
+                  <button 
+                    onClick={toggleAI}
+                    className="text-xs px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
+                  >
+                    {selectedChat.aiActive 
+                      ? (language === 'ru' ? '🤖 Выключить AI' : '🤖 Disable AI')
+                      : (language === 'ru' ? '🤖 Включить AI' : '🤖 Enable AI')
+                    }
+                  </button>
+                </div>
+              )}
               <div className="flex items-end gap-2">
                 <button className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors flex-shrink-0">
                   <Paperclip size={20} className="text-muted-foreground" />
@@ -511,9 +649,7 @@ export default function Messages() {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder={selectedChat.type === 'ai' 
-                      ? (language === 'ru' ? 'Задайте вопрос AI-ассистенту...' : 'Ask the AI assistant...')
-                      : t("messages.typeMessage")}
+                    placeholder={t("messages.typeMessage")}
                     className="input-scolio py-2.5 pr-10 resize-none min-h-[44px] max-h-32"
                     rows={1}
                   />
@@ -551,13 +687,122 @@ export default function Messages() {
                   : 'All messages are end-to-end encrypted'}
               </p>
               <div className="flex items-center justify-center gap-2 text-xs text-purple-600">
-                <Sparkles size={14} />
-                <span>{language === 'ru' ? 'AI-ассистент доступен 24/7' : 'AI assistant available 24/7'}</span>
+                <Bot size={14} />
+                <span>{language === 'ru' ? 'AI-ассистент интегрирован во все чаты' : 'AI assistant integrated in all chats'}</span>
               </div>
             </div>
           </Card>
         )}
       </div>
+
+      {/* AI Info Modal */}
+      {showAIInfo && selectedChat && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          onClick={() => setShowAIInfo(false)}
+        >
+          <Card 
+            className="w-full max-w-md animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardContent className="p-6">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mx-auto mb-4">
+                  <Bot size={32} className="text-purple-600 dark:text-purple-400" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">
+                  {language === 'ru' ? 'AI-ассистент в чате' : 'AI Assistant in Chat'}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {language === 'ru' 
+                    ? 'AI-ассистент помогает отвечать на вопросы пока врач недоступен' 
+                    : 'AI assistant helps answer questions while the doctor is unavailable'}
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-muted">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium">
+                      {language === 'ru' ? 'Статус AI' : 'AI Status'}
+                    </p>
+                    <span className={cn(
+                      "px-2 py-1 rounded-full text-xs font-medium",
+                      selectedChat.aiActive 
+                        ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-500"
+                    )}>
+                      {selectedChat.aiActive 
+                        ? (language === 'ru' ? 'Активен' : 'Active')
+                        : (language === 'ru' ? 'Неактивен' : 'Inactive')
+                      }
+                    </span>
+                  </div>
+                  {!selectedChat.aiActive && selectedChat.aiWillReturnAt && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Timer size={12} />
+                      {language === 'ru' 
+                        ? `Вернётся через ${formatTimeRemaining(selectedChat.aiWillReturnAt)}`
+                        : `Returns in ${formatTimeRemaining(selectedChat.aiWillReturnAt)}`
+                      }
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-start gap-3">
+                    <Sparkles size={18} className="text-purple-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-muted-foreground">
+                      {language === 'ru' 
+                        ? 'AI отвечает на вопросы пока врач не в сети' 
+                        : 'AI answers questions while doctor is offline'}
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Timer size={18} className="text-purple-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-muted-foreground">
+                      {language === 'ru' 
+                        ? 'Когда врач отвечает, AI уходит в фон на 1.5 часа' 
+                        : 'When doctor responds, AI goes silent for 1.5 hours'}
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Shield size={18} className="text-purple-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-muted-foreground">
+                      {language === 'ru' 
+                        ? 'AI работает на локальном сервере Ollama' 
+                        : 'AI runs on local Ollama server'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button 
+                  onClick={toggleAI}
+                  className={cn(
+                    "flex-1 py-2.5 rounded-xl font-medium transition-colors",
+                    selectedChat.aiActive 
+                      ? "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200"
+                      : "bg-purple-100 dark:bg-purple-900/30 text-purple-600 hover:bg-purple-200"
+                  )}
+                >
+                  {selectedChat.aiActive 
+                    ? (language === 'ru' ? 'Выключить AI' : 'Disable AI')
+                    : (language === 'ru' ? 'Включить AI' : 'Enable AI')
+                  }
+                </button>
+                <button 
+                  onClick={() => setShowAIInfo(false)}
+                  className="flex-1 btn-scolio-primary"
+                >
+                  {language === 'ru' ? 'Понятно' : 'Got it'}
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Encryption Info Modal */}
       {showEncryptionInfo && (
