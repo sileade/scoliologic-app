@@ -1,97 +1,182 @@
 version: '3.8'
 
+# =============================================================================
+# Scoliologic Patient App - Production Docker Compose
+# =============================================================================
+# Полный стек для развёртывания приложения:
+# - app: Node.js приложение
+# - postgres: База данных PostgreSQL 16
+# - ollama: Локальный LLM сервер для AI-ассистента
+# - nginx: Reverse proxy с SSL
+# - pull-agent: GitOps агент для автообновления
+# - redis: Кэширование и сессии
+# =============================================================================
+
 services:
+  # ---------------------------------------------------------------------------
+  # Основное приложение
+  # ---------------------------------------------------------------------------
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: scoliologic-patient-app
+    container_name: scoliologic-app
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-scoliologic}:${POSTGRES_PASSWORD:-scoliologic_pass}@db:5432/${POSTGRES_DB:-scoliologic_db}
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-scoliologic}:${POSTGRES_PASSWORD:-scoliologic_secret}@postgres:5432/${POSTGRES_DB:-scoliologic_db}
       - DATABASE_SSL=false
-      - JWT_SECRET=${JWT_SECRET}
-      - OAUTH_SERVER_URL=${OAUTH_SERVER_URL}
-      - BUILT_IN_FORGE_API_KEY=${BUILT_IN_FORGE_API_KEY}
-      - BUILT_IN_FORGE_API_URL=${BUILT_IN_FORGE_API_URL}
-      - VITE_APP_ID=${VITE_APP_ID}
-      - VITE_APP_TITLE=${VITE_APP_TITLE:-Scoliologic Patient App}
-      - VITE_APP_LOGO=${VITE_APP_LOGO}
-      - VITE_OAUTH_PORTAL_URL=${VITE_OAUTH_PORTAL_URL}
-      - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY}
-      - VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN}
-      - VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID}
-      - VITE_FIREBASE_STORAGE_BUCKET=${VITE_FIREBASE_STORAGE_BUCKET}
-      - VITE_FIREBASE_MESSAGING_SENDER_ID=${VITE_FIREBASE_MESSAGING_SENDER_ID}
-      - VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID}
-      - VITE_FIREBASE_VAPID_KEY=${VITE_FIREBASE_VAPID_KEY}
-      # ESIA (Gosuslugi) configuration
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
+      - OAUTH_SERVER_URL=${OAUTH_SERVER_URL:-https://oauth.scoliologic.ru}
+      # ESIA (Госуслуги)
       - ESIA_CLIENT_ID=${ESIA_CLIENT_ID}
+      - ESIA_CLIENT_SECRET=${ESIA_CLIENT_SECRET}
       - ESIA_REDIRECT_URI=${ESIA_REDIRECT_URI}
       - ESIA_SCOPE=${ESIA_SCOPE:-openid fullname snils}
       - ESIA_ENVIRONMENT=${ESIA_ENVIRONMENT:-test}
-      # Ollama AI configuration
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
-      # MIS integration
+      # МИС интеграция
       - MIS_API_URL=${MIS_API_URL}
       - MIS_API_KEY=${MIS_API_KEY}
+      # Ollama AI
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
+      - OLLAMA_TIMEOUT=${OLLAMA_TIMEOUT:-60000}
+      # Firebase (push notifications)
+      - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY}
+      - VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN}
+      - VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID}
+      - VITE_APP_TITLE=${VITE_APP_TITLE:-Scoliologic Patient App}
+    ports:
+      - "3000:3000"
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
-    networks:
-      - scoliologic-network
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - scoliologic-network
+    volumes:
+      - app-uploads:/app/uploads
+      - app-logs:/app/logs
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.scoliologic.rule=Host(`app.scoliologic.ru`)"
+      - "traefik.http.routers.scoliologic.tls=true"
+      - "traefik.http.routers.scoliologic.tls.certresolver=letsencrypt"
+      - "traefik.http.services.scoliologic.loadbalancer.server.port=3000"
 
-  db:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16 - База данных
+  # ---------------------------------------------------------------------------
+  postgres:
     image: postgres:16-alpine
     container_name: scoliologic-postgres
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-scoliologic}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-scoliologic_pass}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-scoliologic_secret}
       - POSTGRES_DB=${POSTGRES_DB:-scoliologic_db}
+      - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      - scoliologic-network
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-scoliologic} -d ${POSTGRES_DB:-scoliologic_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 10s
+    networks:
+      - scoliologic-network
+    ports:
+      - "5432:5432"
 
+  # ---------------------------------------------------------------------------
+  # Redis - Кэширование и сессии
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: scoliologic-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - scoliologic-network
+
+  # ---------------------------------------------------------------------------
+  # Ollama - Локальный LLM сервер
+  # ---------------------------------------------------------------------------
   ollama:
     image: ollama/ollama:latest
     container_name: scoliologic-ollama
     restart: unless-stopped
     volumes:
-      - ollama_data:/root/.ollama
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
     ports:
       - "11434:11434"
     networks:
       - scoliologic-network
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    # Remove GPU section if not available
-    # Comment out the deploy section above if running on CPU only
+    # GPU поддержка (закомментируйте если нет GPU)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
 
+  # ---------------------------------------------------------------------------
+  # Pull-агент - GitOps автообновление
+  # ---------------------------------------------------------------------------
+  pull-agent:
+    build:
+      context: ./deploy/pull-agent
+      dockerfile: Dockerfile
+    container_name: scoliologic-pull-agent
+    restart: unless-stopped
+    environment:
+      - GIT_REPO_URL=${GIT_REPO_URL:-https://github.com/sileade/scoliologic-app.git}
+      - GIT_BRANCH=${GIT_BRANCH:-main}
+      - GIT_TOKEN=${GIT_TOKEN}
+      - CHECK_INTERVAL=${CHECK_INTERVAL:-300}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - APP_CONTAINER_NAME=scoliologic-app
+      - DOCKER_COMPOSE_FILE=/app/repo/docker-compose.yml
+      - AUTO_DEPLOY=${AUTO_DEPLOY:-true}
+      - HEALTH_CHECK_URL=http://app:3000/api/health
+      - ROLLBACK_ON_FAILURE=${ROLLBACK_ON_FAILURE:-true}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./:/app/repo
+      - pull-agent-data:/app/data
+    networks:
+      - scoliologic-network
+    depends_on:
+      - app
+
+  # ---------------------------------------------------------------------------
+  # Nginx - Reverse Proxy (профиль nginx)
+  # ---------------------------------------------------------------------------
   nginx:
     image: nginx:alpine
     container_name: scoliologic-nginx
@@ -100,17 +185,127 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./deploy/ssl:/etc/nginx/ssl:ro
+      - nginx-logs:/var/log/nginx
     depends_on:
       - app
     networks:
       - scoliologic-network
+    profiles:
+      - nginx
 
-volumes:
-  postgres_data:
-  ollama_data:
+  # ---------------------------------------------------------------------------
+  # Traefik - Reverse Proxy с автоматическим SSL (профиль traefik)
+  # ---------------------------------------------------------------------------
+  traefik:
+    image: traefik:v3.0
+    container_name: scoliologic-traefik
+    restart: unless-stopped
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@scoliologic.ru}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-letsencrypt:/letsencrypt
+    networks:
+      - scoliologic-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.scoliologic.ru`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_AUTH}"
+    profiles:
+      - traefik
 
+  # ---------------------------------------------------------------------------
+  # Мониторинг - Prometheus (профиль monitoring)
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: scoliologic-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - scoliologic-network
+    profiles:
+      - monitoring
+
+  # ---------------------------------------------------------------------------
+  # Мониторинг - Grafana (профиль monitoring)
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: scoliologic-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - scoliologic-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.scoliologic.ru`)"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    profiles:
+      - monitoring
+
+# =============================================================================
+# Сети
+# =============================================================================
 networks:
   scoliologic-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# =============================================================================
+# Тома
+# =============================================================================
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  ollama-data:
+    driver: local
+  app-uploads:
+    driver: local
+  app-logs:
+    driver: local
+  pull-agent-data:
+    driver: local
+  nginx-logs:
+    driver: local
+  traefik-letsencrypt:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
