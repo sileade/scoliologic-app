@@ -29,9 +29,11 @@ const Documents = lazy(() => import("./pages/Documents"));
 const Messages = lazy(() => import("./pages/Messages"));
 const Knowledge = lazy(() => import("./pages/Knowledge"));
 const Prosthesis = lazy(() => import("./pages/Prosthesis"));
+const Devices = lazy(() => import("./pages/Devices"));
 const Service = lazy(() => import("./pages/Service"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Settings = lazy(() => import("./pages/Settings"));
+const Auth = lazy(() => import("./pages/Auth"));
 
 // Lazy load admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
@@ -58,10 +60,13 @@ function Router() {
         <Route path={"/knowledge"} component={Knowledge} />
         <Route path={"/knowledge/exercises"} component={Knowledge} />
         <Route path={"/prosthesis"} component={Prosthesis} />
+        <Route path={"/devices"} component={Devices} />
         <Route path={"/service"} component={Service} />
         <Route path={"/profile"} component={Profile} />
         <Route path={"/settings"} component={Settings} />
         <Route path={"/notifications"} component={Settings} />
+        <Route path={"/auth"} component={Auth} />
+        <Route path={"/login"} component={Auth} />
         
         {/* Admin Panel Routes */}
         <Route path={"/admin"} component={AdminDashboard} />
