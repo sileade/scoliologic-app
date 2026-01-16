@@ -8,15 +8,17 @@ import {
   BookIcon, 
   ProsthesisIcon, 
   ServiceIcon, 
-  ProfileIcon 
+  ProfileIcon,
+  DocumentIcon,
+  MessageIcon
 } from "./NotionIcons";
 
 const navItems = [
   { href: "/", icon: HomeIcon, labelKey: "nav.dashboard" },
   { href: "/rehabilitation", icon: RehabIcon, labelKey: "nav.rehabilitation" },
-  { href: "/knowledge", icon: BookIcon, labelKey: "nav.knowledge" },
+  { href: "/documents", icon: DocumentIcon, labelKey: "nav.documents" },
   { href: "/prosthesis", icon: ProsthesisIcon, labelKey: "nav.prosthesis" },
-  { href: "/service", icon: ServiceIcon, labelKey: "nav.service" },
+  { href: "/messages", icon: MessageIcon, labelKey: "nav.messages" },
 ];
 
 export function MobileNav() {
@@ -25,7 +27,7 @@ export function MobileNav() {
 
   return (
     <nav className="bottom-nav">
-      <div className="flex items-center justify-around py-3 px-2">
+      <div className="flex items-center justify-around py-2 px-1">
         {navItems.map((item) => {
           const isActive = location === item.href || 
             (item.href !== "/" && location.startsWith(item.href));
@@ -36,23 +38,18 @@ export function MobileNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center py-2 px-3 rounded-2xl transition-all duration-200 touch-target",
-                isActive
-                  ? "text-primary bg-primary/10"
-                  : "text-muted-foreground hover:text-foreground"
+                "nav-item",
+                isActive && "active"
               )}
             >
               <Icon 
                 className={cn(
-                  "mb-1 transition-transform duration-200",
-                  isActive && "scale-115"
+                  "nav-item-icon transition-transform duration-200",
+                  isActive && "scale-110"
                 )} 
-                size={22}
+                size={24}
               />
-              <span className={cn(
-                "text-[11px] tracking-wide",
-                isActive ? "font-bold text-primary" : "font-semibold"
-              )}>
+              <span className="nav-item-label">
                 {t(item.labelKey)}
               </span>
             </Link>
@@ -63,23 +60,18 @@ export function MobileNav() {
         <ProfileSummary>
           <button
             className={cn(
-              "flex flex-col items-center justify-center py-2 px-3 rounded-2xl transition-all duration-200 touch-target",
-              location === "/profile" || location.startsWith("/profile")
-                ? "text-primary bg-primary/10"
-                : "text-muted-foreground hover:text-foreground"
+              "nav-item",
+              (location === "/profile" || location.startsWith("/profile")) && "active"
             )}
           >
             <ProfileIcon 
               className={cn(
-                "mb-1 transition-transform duration-200",
-                (location === "/profile" || location.startsWith("/profile")) && "scale-115"
+                "nav-item-icon transition-transform duration-200",
+                (location === "/profile" || location.startsWith("/profile")) && "scale-110"
               )} 
-              size={22}
+              size={24}
             />
-            <span className={cn(
-              "text-[11px] tracking-wide",
-              (location === "/profile" || location.startsWith("/profile")) ? "font-bold text-primary" : "font-semibold"
-            )}>
+            <span className="nav-item-label">
               {t("nav.profile")}
             </span>
           </button>

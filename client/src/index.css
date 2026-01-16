@@ -20,101 +20,112 @@
 }
 
 :root {
-  /* Ortho Innovations Color Scheme - Purple & Mint (per requirements) */
-  /* Primary: Calm Purple (#7C3AED), Accent: Mint Green (#10B981) */
+  /* Scoliologic.ru Color Scheme */
+  /* Primary: Lime Green (#BFFF00), Accent: Teal/Cyan (#2DBDB6) */
   --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
+  --foreground: 220 20% 15%;
   
   --card: 0 0% 100%;
-  --card-border: 174 72% 56%;
-  --card-foreground: 222 47% 11%;
+  --card-border: 174 56% 46%;
+  --card-foreground: 220 20% 15%;
   
   --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
+  --popover-foreground: 220 20% 15%;
   
-  /* Primary Purple - calm tones for buttons, links, branding */
-  --primary: 263 70% 58%;
-  --primary-foreground: 0 0% 100%;
+  /* Primary Lime - яркий лаймовый для кнопок и акцентов */
+  --primary: 75 100% 50%;
+  --primary-foreground: 220 20% 15%;
   
-  /* Secondary - Light purple */
-  --secondary: 263 50% 95%;
-  --secondary-foreground: 263 70% 45%;
+  /* Secondary - светлый бирюзовый */
+  --secondary: 174 50% 95%;
+  --secondary-foreground: 174 56% 35%;
   
-  --muted: 220 14% 96%;
+  --muted: 174 20% 96%;
   --muted-foreground: 220 9% 46%;
   
-  /* Accent - Mint Green for notifications and cards */
-  --accent: 160 84% 39%;
+  /* Accent - Teal/Бирюзовый для карточек и уведомлений */
+  --accent: 174 56% 46%;
   --accent-foreground: 0 0% 100%;
   
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
   
-  --border: 174 72% 56%;
+  --border: 174 30% 85%;
   --input: 220 13% 91%;
-  --ring: 263 70% 58%;
+  --ring: 75 100% 50%;
   
-  /* Success green for notifications */
+  /* Success green */
   --success: 160 84% 39%;
   --success-foreground: 0 0% 100%;
   
-  /* Warning orange */
-  --warning: 38 92% 50%;
-  --warning-foreground: 0 0% 100%;
+  /* Warning orange - оранжевый как на сайте */
+  --warning: 30 100% 65%;
+  --warning-foreground: 220 20% 15%;
   
-  --radius: 0.75rem;
+  /* Info - бирюзовый */
+  --info: 174 56% 46%;
+  --info-foreground: 0 0% 100%;
   
-  /* Sidebar - Purple theme */
-  --sidebar-background: 263 70% 58%;
+  --radius: 1rem;
+  
+  /* Sidebar - Teal/Бирюзовый theme */
+  --sidebar-background: 174 56% 46%;
   --sidebar-foreground: 0 0% 100%;
   --sidebar-primary: 0 0% 100%;
-  --sidebar-primary-foreground: 263 70% 58%;
-  --sidebar-accent: 263 70% 65%;
+  --sidebar-primary-foreground: 174 56% 46%;
+  --sidebar-accent: 174 56% 52%;
   --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-border: 263 70% 50%;
+  --sidebar-border: 174 56% 40%;
   --sidebar-ring: 0 0% 100%;
+  
+  /* Scoliologic specific colors */
+  --scolio-lime: 75 100% 50%;
+  --scolio-teal: 174 56% 46%;
+  --scolio-orange: 30 100% 68%;
+  --scolio-mint: 174 50% 75%;
+  --scolio-beige: 30 40% 75%;
 }
 
 .dark {
-  --background: 222 47% 11%;
+  --background: 220 20% 10%;
   --foreground: 210 40% 98%;
   
-  --card: 222 47% 15%;
+  --card: 220 20% 14%;
   --card-foreground: 210 40% 98%;
   
-  --popover: 222 47% 15%;
+  --popover: 220 20% 14%;
   --popover-foreground: 210 40% 98%;
   
-  /* Primary Purple - darker variant for dark mode */
-  --primary: 263 70% 65%;
-  --primary-foreground: 0 0% 100%;
+  /* Primary Lime - для тёмной темы */
+  --primary: 75 100% 45%;
+  --primary-foreground: 220 20% 10%;
   
-  --secondary: 263 33% 20%;
+  --secondary: 174 33% 20%;
   --secondary-foreground: 210 40% 98%;
   
-  --muted: 220 33% 17%;
+  --muted: 220 20% 17%;
   --muted-foreground: 220 20% 65%;
   
-  /* Accent - Mint Green */
-  --accent: 160 84% 45%;
+  /* Accent - Teal для тёмной темы */
+  --accent: 174 56% 50%;
   --accent-foreground: 0 0% 100%;
   
   --destructive: 0 62% 30%;
   --destructive-foreground: 0 0% 98%;
   
-  --border: 220 33% 25%;
-  --input: 220 33% 25%;
-  --ring: 263 70% 65%;
+  --border: 220 20% 25%;
+  --input: 220 20% 25%;
+  --ring: 75 100% 45%;
   
-  /* Sidebar - Dark mode with purple accent */
-  --sidebar-background: 222 47% 11%;
+  /* Sidebar - Dark mode */
+  --sidebar-background: 220 20% 10%;
   --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 263 70% 65%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 263 33% 20%;
+  --sidebar-primary: 75 100% 45%;
+  --sidebar-primary-foreground: 220 20% 10%;
+  --sidebar-accent: 174 33% 20%;
   --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-border: 220 33% 25%;
-  --sidebar-ring: 263 70% 65%;
+  --sidebar-border: 220 20% 25%;
+  --sidebar-ring: 75 100% 45%;
 }
 
 @theme inline {
@@ -179,38 +190,41 @@
     scroll-behavior: smooth;
   }
   
-  /* Safe area insets for mobile devices */
   body {
     padding-bottom: env(safe-area-inset-bottom);
   }
   
-  /* Prevent text selection on mobile nav */
   .mobile-nav {
     -webkit-user-select: none;
     user-select: none;
   }
 }
 
-/* Custom scrollbar for mobile feel */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: hsl(var(--muted));
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
-  border-radius: 4px;
+  background: hsl(var(--accent) / 0.5);
+  border-radius: 3px;
 }
 
-/* Touch-friendly button states */
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--accent) / 0.7);
+}
+
+/* Scoliologic Button Styles */
 @layer components {
   .touch-target {
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 48px;
+    min-width: 48px;
   }
   
   .card-interactive {
@@ -219,6 +233,121 @@
   
   .card-interactive:hover {
     @apply shadow-lg;
+  }
+  
+  /* Scoliologic Primary Button - Lime */
+  .btn-scolio-primary {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    border-radius: 12px;
+    padding: 0.875rem 1.75rem;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    transition: all 0.2s ease;
+    border: none;
+    box-shadow: 0 2px 8px hsl(var(--primary) / 0.3);
+  }
+  
+  .btn-scolio-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px hsl(var(--primary) / 0.4);
+  }
+  
+  .btn-scolio-primary:active {
+    transform: translateY(0);
+  }
+  
+  /* Scoliologic Secondary Button - Teal */
+  .btn-scolio-secondary {
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+    border-radius: 12px;
+    padding: 0.875rem 1.75rem;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    transition: all 0.2s ease;
+    border: none;
+  }
+  
+  .btn-scolio-secondary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+  
+  /* Scoliologic Outline Button */
+  .btn-scolio-outline {
+    background: transparent;
+    color: hsl(var(--accent));
+    border: 2px solid hsl(var(--accent));
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+  
+  .btn-scolio-outline:hover {
+    background: hsl(var(--accent) / 0.1);
+  }
+}
+
+/* Scoliologic Card Styles */
+@layer components {
+  /* Main service card - like on scoliologic.ru */
+  .scolio-card {
+    @apply bg-card rounded-3xl overflow-hidden transition-all duration-300;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  }
+  
+  .scolio-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Colored cards like on the main site */
+  .scolio-card-lime {
+    background: linear-gradient(135deg, hsl(75 70% 75%) 0%, hsl(75 80% 65%) 100%);
+    color: hsl(220 20% 15%);
+  }
+  
+  .scolio-card-teal {
+    background: linear-gradient(135deg, hsl(174 50% 70%) 0%, hsl(174 56% 55%) 100%);
+    color: white;
+  }
+  
+  .scolio-card-orange {
+    background: linear-gradient(135deg, hsl(30 100% 80%) 0%, hsl(30 100% 70%) 100%);
+    color: hsl(220 20% 15%);
+  }
+  
+  .scolio-card-mint {
+    background: linear-gradient(135deg, hsl(174 50% 85%) 0%, hsl(174 50% 75%) 100%);
+    color: hsl(220 20% 15%);
+  }
+  
+  .scolio-card-beige {
+    background: linear-gradient(135deg, hsl(30 40% 85%) 0%, hsl(30 40% 75%) 100%);
+    color: hsl(220 20% 15%);
+  }
+  
+  /* Stats cards */
+  .scolio-stats-card {
+    @apply bg-card border-2 border-accent/20 rounded-2xl p-5;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  }
+  
+  .scolio-stats-card:hover {
+    @apply border-accent/40;
+  }
+  
+  /* Feature card with icon */
+  .scolio-feature-card {
+    @apply bg-card rounded-2xl p-6 transition-all duration-200;
+    border: 1px solid hsl(var(--border));
+  }
+  
+  .scolio-feature-card:hover {
+    border-color: hsl(var(--accent));
+    box-shadow: 0 4px 20px hsl(var(--accent) / 0.15);
   }
 }
 
@@ -229,158 +358,279 @@
   left: 0;
   right: 0;
   background: hsl(var(--background));
-  border-top: 1px solid hsl(var(--border));
+  border-top: 2px solid hsl(var(--accent) / 0.2);
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 50;
+  backdrop-filter: blur(10px);
 }
 
-/* Page container with bottom nav spacing */
 .page-with-nav {
-  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  padding-bottom: calc(85px + env(safe-area-inset-bottom));
 }
 
 /* Floating action button */
 .fab {
   position: fixed;
-  bottom: calc(90px + env(safe-area-inset-bottom));
-  right: 16px;
+  bottom: calc(100px + env(safe-area-inset-bottom));
+  right: 20px;
   z-index: 40;
 }
 
-/* Notion-style hand-drawn icon effects */
-.icon-notion {
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-/* Purple accent button style (primary action) */
-.btn-accent-purple {
+.fab-button {
+  @apply rounded-full shadow-lg;
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
-  border-radius: 9999px;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-  transition: all 0.2s;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px hsl(var(--primary) / 0.4);
+  transition: all 0.2s ease;
 }
 
-.btn-accent-purple:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
+.fab-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 25px hsl(var(--primary) / 0.5);
 }
 
-/* Mint accent for notifications and success states */
-.btn-accent-mint {
-  background: hsl(var(--accent));
-  color: hsl(var(--accent-foreground));
-  border-radius: 9999px;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-  transition: all 0.2s;
-}
-
-.btn-accent-mint:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-/* Enhanced card visibility for light theme */
+/* Navigation item styles */
 @layer components {
-  /* Cards with subtle shadow and border in light mode */
-  .card-elevated {
-    @apply bg-card border border-border/50 shadow-sm;
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  .nav-item {
+    @apply flex flex-col items-center justify-center py-2 px-3 rounded-xl transition-all duration-200;
+    min-width: 64px;
   }
   
-  .card-elevated:hover {
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  .nav-item.active {
+    background: hsl(var(--accent) / 0.15);
+    color: hsl(var(--accent));
   }
   
-  /* Stats cards with better visibility */
-  .stats-card {
-    @apply bg-card border border-border/60 rounded-xl p-4;
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04);
+  .nav-item:not(.active) {
+    color: hsl(var(--muted-foreground));
   }
   
-  /* Action buttons with better contrast */
-  .btn-visible {
-    @apply border border-border/70 shadow-sm;
+  .nav-item:hover:not(.active) {
+    background: hsl(var(--muted));
   }
   
-  /* Table rows with better separation */
-  .table-row-visible {
-    @apply border-b border-border/60;
+  .nav-item-icon {
+    @apply w-6 h-6 mb-1;
   }
   
-  .table-row-visible:hover {
-    @apply bg-muted/40;
-  }
-  
-  /* Input fields with better visibility */
-  .input-visible {
-    @apply border border-border/80 shadow-sm;
-  }
-  
-  /* Modal/dialog with enhanced shadow */
-  .modal-elevated {
-    box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.08);
-  }
-  
-  /* Sidebar items with better hover state */
-  .sidebar-item-visible {
-    @apply rounded-lg transition-all duration-200;
-  }
-  
-  .sidebar-item-visible:hover {
-    @apply bg-sidebar-accent/20;
-  }
-  
-  /* Quick action cards */
-  .quick-action-card {
-    @apply bg-card border border-border/50 rounded-xl p-4 transition-all duration-200;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03);
-  }
-  
-  .quick-action-card:hover {
-    @apply border-primary/30;
-    box-shadow: 0 4px 8px -2px rgb(0 0 0 / 0.06);
-    transform: translateY(-1px);
-  }
-  
-  /* Progress bars with better visibility */
-  .progress-visible {
-    @apply bg-muted/80 rounded-full overflow-hidden;
-  }
-  
-  /* Badge/tag with better contrast */
-  .badge-visible {
-    @apply border border-current/20;
+  .nav-item-label {
+    @apply text-xs font-medium;
   }
 }
 
-/* Light theme specific enhancements */
-:root {
-  /* Slightly darker border for better visibility */
-  --border-enhanced: 220 13% 85%;
+/* Progress indicators */
+@layer components {
+  .progress-scolio {
+    @apply bg-muted rounded-full overflow-hidden h-3;
+  }
+  
+  .progress-scolio-bar {
+    @apply h-full rounded-full transition-all duration-500;
+    background: linear-gradient(90deg, hsl(var(--accent)) 0%, hsl(var(--primary)) 100%);
+  }
+}
+
+/* Badge styles */
+@layer components {
+  .badge-scolio {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  .badge-scolio-lime {
+    background: hsl(var(--primary) / 0.2);
+    color: hsl(75 100% 35%);
+  }
+  
+  .badge-scolio-teal {
+    background: hsl(var(--accent) / 0.2);
+    color: hsl(var(--accent));
+  }
+  
+  .badge-scolio-orange {
+    background: hsl(var(--warning) / 0.2);
+    color: hsl(30 100% 45%);
+  }
+}
+
+/* Form styles */
+@layer components {
+  .input-scolio {
+    @apply w-full px-4 py-3 rounded-xl border-2 transition-all duration-200;
+    border-color: hsl(var(--border));
+    background: hsl(var(--background));
+  }
+  
+  .input-scolio:focus {
+    border-color: hsl(var(--accent));
+    box-shadow: 0 0 0 4px hsl(var(--accent) / 0.1);
+    outline: none;
+  }
+  
+  .input-scolio::placeholder {
+    color: hsl(var(--muted-foreground));
+  }
+}
+
+/* Avatar styles */
+@layer components {
+  .avatar-scolio {
+    @apply rounded-full overflow-hidden border-2;
+    border-color: hsl(var(--accent));
+  }
+  
+  .avatar-scolio-lg {
+    @apply w-16 h-16;
+  }
+  
+  .avatar-scolio-md {
+    @apply w-12 h-12;
+  }
+  
+  .avatar-scolio-sm {
+    @apply w-8 h-8;
+  }
+}
+
+/* Section headers */
+@layer components {
+  .section-header {
+    @apply text-xl font-bold mb-4;
+    color: hsl(var(--foreground));
+  }
+  
+  .section-subheader {
+    @apply text-sm font-medium mb-3;
+    color: hsl(var(--muted-foreground));
+  }
+}
+
+/* List item styles */
+@layer components {
+  .list-item-scolio {
+    @apply flex items-center p-4 rounded-xl transition-all duration-200;
+    border: 1px solid transparent;
+  }
+  
+  .list-item-scolio:hover {
+    background: hsl(var(--muted));
+    border-color: hsl(var(--border));
+  }
+  
+  .list-item-scolio:active {
+    @apply scale-[0.99];
+  }
+}
+
+/* Empty state */
+@layer components {
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-12 px-6 text-center;
+  }
+  
+  .empty-state-icon {
+    @apply w-16 h-16 mb-4;
+    color: hsl(var(--accent) / 0.5);
+  }
+  
+  .empty-state-title {
+    @apply text-lg font-semibold mb-2;
+    color: hsl(var(--foreground));
+  }
+  
+  .empty-state-description {
+    @apply text-sm;
+    color: hsl(var(--muted-foreground));
+  }
+}
+
+/* Skeleton loading */
+@layer components {
+  .skeleton-scolio {
+    @apply animate-pulse rounded-xl;
+    background: linear-gradient(90deg, hsl(var(--muted)) 0%, hsl(var(--muted) / 0.5) 50%, hsl(var(--muted)) 100%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes skeleton-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+}
+
+/* Notification dot */
+@layer components {
+  .notification-dot {
+    @apply absolute w-3 h-3 rounded-full;
+    background: hsl(var(--destructive));
+    top: -2px;
+    right: -2px;
+    border: 2px solid hsl(var(--background));
+  }
+}
+
+/* Divider */
+@layer components {
+  .divider-scolio {
+    @apply w-full h-px my-4;
+    background: linear-gradient(90deg, transparent 0%, hsl(var(--border)) 50%, transparent 100%);
+  }
 }
 
 /* Apply enhanced borders to shadcn Card component */
 [data-slot="card"] {
   border: 1px solid hsl(var(--border));
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-/* Better button visibility in light mode */
+/* Better button visibility */
 button[data-variant="outline"] {
-  border-color: hsl(var(--border));
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+  border-color: hsl(var(--accent) / 0.3);
 }
 
-/* Table header with subtle background */
+button[data-variant="outline"]:hover {
+  border-color: hsl(var(--accent));
+  background: hsl(var(--accent) / 0.05);
+}
+
+/* Table styles */
 thead tr {
-  background: hsl(var(--muted) / 0.5);
+  background: hsl(var(--accent) / 0.1);
 }
 
-/* Form inputs with better focus states */
+/* Form inputs focus states */
 input:focus, select:focus, textarea:focus {
-  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.15);
+  box-shadow: 0 0 0 3px hsl(var(--accent) / 0.15);
 }
+
+/* Animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out forwards;
+}
+
+/* Staggered animation for lists */
+.stagger-item:nth-child(1) { animation-delay: 0.05s; }
+.stagger-item:nth-child(2) { animation-delay: 0.1s; }
+.stagger-item:nth-child(3) { animation-delay: 0.15s; }
+.stagger-item:nth-child(4) { animation-delay: 0.2s; }
+.stagger-item:nth-child(5) { animation-delay: 0.25s; }

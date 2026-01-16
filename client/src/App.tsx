@@ -9,12 +9,15 @@ import { lazy, Suspense } from "react";
 import { LoadingBar } from "./components/LoadingBar";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 
-// Loading component for lazy loaded pages
+// Loading component for lazy loaded pages - Scoliologic themed
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-screen bg-background">
     <div className="flex flex-col items-center gap-4">
-      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      <p className="text-muted-foreground text-sm">Загрузка...</p>
+      <div className="w-12 h-12 relative">
+        <div className="absolute inset-0 border-4 border-accent/30 rounded-full" />
+        <div className="absolute inset-0 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+      <p className="text-muted-foreground text-sm font-medium">Загрузка...</p>
     </div>
   </div>
 );
@@ -22,6 +25,8 @@ const PageLoader = () => (
 // Lazy load patient pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Rehabilitation = lazy(() => import("./pages/Rehabilitation"));
+const Documents = lazy(() => import("./pages/Documents"));
+const Messages = lazy(() => import("./pages/Messages"));
 const Knowledge = lazy(() => import("./pages/Knowledge"));
 const Prosthesis = lazy(() => import("./pages/Prosthesis"));
 const Service = lazy(() => import("./pages/Service"));
@@ -48,12 +53,15 @@ function Router() {
         <Route path={"/"} component={Dashboard} />
         <Route path={"/rehabilitation"} component={Rehabilitation} />
         <Route path={"/rehab/current"} component={Rehabilitation} />
+        <Route path={"/documents"} component={Documents} />
+        <Route path={"/messages"} component={Messages} />
         <Route path={"/knowledge"} component={Knowledge} />
         <Route path={"/knowledge/exercises"} component={Knowledge} />
         <Route path={"/prosthesis"} component={Prosthesis} />
         <Route path={"/service"} component={Service} />
         <Route path={"/profile"} component={Profile} />
         <Route path={"/settings"} component={Settings} />
+        <Route path={"/notifications"} component={Settings} />
         
         {/* Admin Panel Routes */}
         <Route path={"/admin"} component={AdminDashboard} />

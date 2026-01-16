@@ -244,3 +244,59 @@ export const TargetIcon: React.FC<IconProps> = ({ className = "", size = 24 }) =
     <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
   </svg>
 );
+
+export const DocumentIcon: React.FC<IconProps> = ({ className = "", size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+    <path d="M14 2H6C5.4 2 5 2.4 5 3V21C5 21.6 5.4 22 6 22H18C18.6 22 19 21.6 19 21V7L14 2Z" 
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M14 2V7H19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M9 9H10M9 13H15M9 17H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+  </svg>
+);
+
+export const CorsetIcon: React.FC<IconProps> = ({ className = "", size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+    <path d="M8 4C8 4 6 6 6 12C6 18 8 20 8 20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <path d="M16 4C16 4 18 6 18 12C18 18 16 20 16 20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <path d="M8 4H16M8 20H16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <path d="M10 8H14M10 12H14M10 16H14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+  </svg>
+);
+
+export const SpineIcon: React.FC<IconProps> = ({ className = "", size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+    <path d="M12 2C12 2 14 4 14 6C14 8 12 8 12 8C12 8 10 8 10 6C10 4 12 2 12 2Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M12 8C12 8 15 10 15 12C15 14 12 14 12 14C12 14 9 14 9 12C9 10 12 8 12 8Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M12 14C12 14 15 16 15 18C15 20 12 22 12 22C12 22 9 20 9 18C9 16 12 14 12 14Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+export const GosuslugiIcon: React.FC<IconProps> = ({ className = "", size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+    <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.8"/>
+    <path d="M7 12H17M12 7V17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/>
+  </svg>
+);
+
+export const LockIcon: React.FC<IconProps> = ({ className = "", size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+    <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.8"/>
+    <path d="M8 11V7C8 4.8 9.8 3 12 3C14.2 3 16 4.8 16 7V11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
+  </svg>
+);
+
+export const SendIcon: React.FC<IconProps> = ({ className = "", size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+    <path d="M22 2L11 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+export const AttachIcon: React.FC<IconProps> = ({ className = "", size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+    <path d="M21.4 11.6L12.2 20.8C10.4 22.6 7.5 22.6 5.7 20.8C3.9 19 3.9 16.1 5.7 14.3L14.9 5.1C16 4 17.8 4 18.9 5.1C20 6.2 20 8 18.9 9.1L10.5 17.5C10 18 9.1 18 8.6 17.5C8.1 17 8.1 16.1 8.6 15.6L16.2 8" 
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
