@@ -1301,3 +1301,123 @@
     border-radius: 16px 16px 0 0;
   }
 }
+
+
+/* ===========================================
+   Native Platform Styles (Capacitor)
+   =========================================== */
+
+/* Safe Area Insets */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+/* Safe area utility classes */
+.pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pl-safe { padding-left: env(safe-area-inset-left, 0px); }
+.pr-safe { padding-right: env(safe-area-inset-right, 0px); }
+
+.mt-safe { margin-top: env(safe-area-inset-top, 0px); }
+.mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
+.ml-safe { margin-left: env(safe-area-inset-left, 0px); }
+.mr-safe { margin-right: env(safe-area-inset-right, 0px); }
+
+/* Full height accounting for safe areas */
+.h-screen-safe {
+  height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+
+.min-h-screen-safe {
+  min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+
+/* Native app specific styles */
+.native-app {
+  /* Prevent text selection on native */
+  -webkit-user-select: none;
+  user-select: none;
+  
+  /* Prevent callout on long press */
+  -webkit-touch-callout: none;
+  
+  /* Smooth scrolling */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Allow text selection in input fields */
+.native-app input,
+.native-app textarea,
+.native-app [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* iOS specific styles */
+.ios-app {
+  /* Prevent bounce effect on iOS */
+  overscroll-behavior: none;
+}
+
+/* Android specific styles */
+.android-app {
+  /* Material ripple effect placeholder */
+}
+
+/* Native button active state */
+.native-button:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+/* Keyboard avoiding view */
+.keyboard-avoiding {
+  transition: padding-bottom 0.25s ease-out;
+}
+
+/* Status bar placeholder for native apps */
+.status-bar-placeholder {
+  height: env(safe-area-inset-top, 0px);
+  background-color: var(--primary);
+}
+
+/* Bottom navigation safe area */
+.bottom-nav-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
+}
+
+/* Pull to refresh indicator */
+.pull-to-refresh-indicator {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+}
+
+/* Native scrollbar hiding */
+.native-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.native-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Splash screen fade out animation */
+@keyframes splash-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.splash-fade-out {
+  animation: splash-fade-out 0.3s ease-out forwards;
+}

@@ -9,6 +9,8 @@ import { lazy, Suspense, useEffect } from "react";
 import { LoadingBar } from "./components/LoadingBar";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import { analytics } from "./lib/analytics";
+import { useNativePlatform } from "./hooks/useNativePlatform";
+import { cn } from "./lib/utils";
 
 // Loading component for lazy loaded pages - Scoliologic themed
 const PageLoader = () => (
@@ -88,6 +90,46 @@ function Router() {
   );
 }
 
+// Native platform wrapper component
+function NativeWrapper({ children }: { children: React.ReactNode }) {
+  const { isNative, isIOS, isAndroid, setStatusBarStyle, hideSplashScreen } = useNativePlatform();
+
+  useEffect(() => {
+    if (isNative) {
+      // Set status bar style
+      setStatusBarStyle('light');
+      
+      // Hide splash screen after a short delay
+      const timer = setTimeout(() => {
+        hideSplashScreen();
+      }, 500);
+
+      // Add platform-specific class to body
+      document.body.classList.add('native-app');
+      if (isIOS) {
+        document.body.classList.add('ios-app');
+      }
+      if (isAndroid) {
+        document.body.classList.add('android-app');
+      }
+
+      return () => {
+        clearTimeout(timer);
+        document.body.classList.remove('native-app', 'ios-app', 'android-app');
+      };
+    }
+  }, [isNative, isIOS, isAndroid, setStatusBarStyle, hideSplashScreen]);
+
+  return (
+    <div className={cn(
+      "min-h-screen",
+      isNative && "pt-safe pb-safe"
+    )}>
+      {children}
+    </div>
+  );
+}
+
 function App() {
   // Инициализация аналитики
   useEffect(() => {
@@ -99,10 +141,12 @@ function App() {
       <ThemeProvider defaultTheme="light">
         <LanguageProvider>
           <TooltipProvider>
-            <LoadingBar />
-            <OfflineIndicator />
-            <Toaster />
-            <Router />
+            <NativeWrapper>
+              <LoadingBar />
+              <OfflineIndicator />
+              <Toaster />
+              <Router />
+            </NativeWrapper>
           </TooltipProvider>
         </LanguageProvider>
       </ThemeProvider>

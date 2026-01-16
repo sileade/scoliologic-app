@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand Colors - Scoliologic -->
+    <color name="colorPrimary">#3B82F6</color>
+    <color name="colorPrimaryDark">#2563EB</color>
+    <color name="colorAccent">#10B981</color>
+    
+    <!-- Background Colors -->
+    <color name="windowBackground">#FFFFFF</color>
+    <color name="splashBackground">#3B82F6</color>
+    
+    <!-- Text Colors -->
+    <color name="textPrimary">#1F2937</color>
+    <color name="textSecondary">#6B7280</color>
+    
+    <!-- Status Colors -->
+    <color name="success">#10B981</color>
+    <color name="warning">#F59E0B</color>
+    <color name="error">#EF4444</color>
+</resources>
