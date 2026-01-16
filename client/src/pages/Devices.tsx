@@ -2,8 +2,9 @@ import { useState, useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
-import { ChevronRight, Shield, AlertTriangle, CheckCircle, ChevronLeft } from 'lucide-react';
+import { ChevronRight, Shield, AlertTriangle, CheckCircle, ChevronLeft, Loader2 } from 'lucide-react';
 import { CorsetIcon } from '@/components/NotionIcons';
 
 type DeviceCategory = 'all' | 'corsets' | 'orthoses';
@@ -21,54 +22,47 @@ interface Device {
   image: string;
 }
 
-const mockDevices: Device[] = [
-  {
-    id: '1',
-    type: 'corset',
-    name: 'Корсет Шено',
-    model: 'Cheneau Classic',
-    serialNumber: 'SCL-2025-001234',
-    status: 'in_use',
-    issueDate: '2025-10-15',
-    warrantyEndDate: '2026-10-15',
-    nextServiceDate: '2026-02-15',
-    image: '🦴'
-  },
-  {
-    id: '2',
-    type: 'corset',
-    name: 'Новый корсет',
-    model: 'Cheneau 3D',
-    status: 'manufacturing',
-    image: '⏳'
-  },
-  {
-    id: '3',
-    type: 'orthosis',
-    name: 'Ортез голеностопный',
-    model: 'AFO-Light',
-    serialNumber: 'OB-2025-005678',
-    status: 'warranty_ending',
-    issueDate: '2025-11-20',
-    warrantyEndDate: '2026-02-20',
-    image: '👟'
-  },
-];
-
 export default function Devices() {
   const { t, language } = useLanguage();
   const [activeCategory, setActiveCategory] = useState<DeviceCategory>('all');
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
 
+  // Fetch devices from API
+  const { 
+    data: devicesData, 
+    isLoading, 
+    error,
+    refetch 
+  } = trpc.mis.getDevices.useQuery(undefined, {
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+    retry: 2,
+  });
+
+  // Transform API data to component format
+  const rawDevices = Array.isArray(devicesData) ? devicesData : (devicesData as any)?.data || [];
+  const devices: Device[] = rawDevices.map((device: any) => ({
+    id: device.id || device.deviceId,
+    type: device.type || (device.category === 'corset' ? 'corset' : 'orthosis'),
+    name: device.name || device.deviceName || 'Изделие',
+    model: device.model || device.modelName,
+    serialNumber: device.serialNumber || device.serial,
+    status: mapDeviceStatus(device.status),
+    issueDate: device.issueDate || device.issuedAt,
+    warrantyEndDate: device.warrantyEndDate || device.warrantyUntil,
+    nextServiceDate: device.nextServiceDate || device.nextService,
+    image: getDeviceEmoji(device.type || device.category),
+  }));
+
   // Haptic feedback
-  const haptic = (intensity: number = 10) => {
-    if (navigator.vibrate) navigator.vibrate(intensity);
+  const haptic = () => {
+    if (navigator.vibrate) navigator.vibrate(10);
   };
 
   // Pull to refresh
   const handleRefresh = useCallback(async () => {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-  }, []);
+    await refetch();
+  }, [refetch]);
 
   const categories = [
     { id: 'all' as const, label: language === 'ru' ? 'Все' : 'All' },
@@ -76,7 +70,7 @@ export default function Devices() {
     { id: 'orthoses' as const, label: language === 'ru' ? 'Ортезы' : 'Orthoses' },
   ];
 
-  const filteredDevices = mockDevices.filter(device => {
+  const filteredDevices = devices.filter(device => {
     if (activeCategory === 'all') return true;
     if (activeCategory === 'corsets') return device.type === 'corset';
     return device.type === 'orthosis';
@@ -133,6 +127,7 @@ export default function Devices() {
               haptic();
               setSelectedDevice(null);
             }}
+            aria-label="Назад"
           >
             <ChevronLeft size={24} />
           </button>
@@ -205,16 +200,28 @@ export default function Devices() {
                       <span className="text-lg">🔧</span>
                       <span className="text-sm">{language === 'ru' ? 'Следующее ТО' : 'Next service'}</span>
                     </div>
-                    <span className="text-sm font-medium text-teal-600">{formatDate(selectedDevice.nextServiceDate)}</span>
+                    <span className="text-sm font-medium">{formatDate(selectedDevice.nextServiceDate)}</span>
                   </div>
                 )}
               </div>
             )}
 
+            {/* Manufacturing Progress */}
             {selectedDevice.status === 'manufacturing' && (
-              <div className="flex items-center justify-center gap-3 py-8 text-teal-600">
-                <div className="w-5 h-5 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
-                <span className="font-medium">{language === 'ru' ? 'В процессе изготовления' : 'Being manufactured'}</span>
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-muted-foreground">
+                    {language === 'ru' ? 'Прогресс изготовления' : 'Manufacturing progress'}
+                  </span>
+                  <span className="text-sm font-medium text-teal-600">60%</span>
+                </div>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-teal-500 to-teal-600 rounded-full w-[60%]" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {language === 'ru' ? 'Ожидаемая дата готовности: ' : 'Expected ready date: '}
+                  <span className="font-medium">15 февраля 2026</span>
+                </p>
               </div>
             )}
           </div>
@@ -223,24 +230,24 @@ export default function Devices() {
           <div className="space-y-3">
             <button 
               className="w-full mobile-card card-interactive flex items-center justify-between"
-              onClick={() => haptic()}
+              onClick={haptic}
             >
               <div className="flex items-center gap-3">
-                <span className="text-xl">📞</span>
-                <span className="font-medium">{language === 'ru' ? 'Связаться с производителем' : 'Contact manufacturer'}</span>
+                <span className="text-lg">📞</span>
+                <span className="font-medium">{language === 'ru' ? 'Связаться с мастером' : 'Contact technician'}</span>
               </div>
-              <ChevronRight size={20} className="text-gray-300" />
+              <ChevronRight size={20} className="text-muted-foreground" />
             </button>
 
             <button 
               className="w-full mobile-card card-interactive flex items-center justify-between"
-              onClick={() => haptic()}
+              onClick={haptic}
             >
               <div className="flex items-center gap-3">
-                <span className="text-xl">📄</span>
-                <span className="font-medium">{language === 'ru' ? 'Инструкция по уходу' : 'Care instructions'}</span>
+                <span className="text-lg">📄</span>
+                <span className="font-medium">{language === 'ru' ? 'Документы' : 'Documents'}</span>
               </div>
-              <ChevronRight size={20} className="text-gray-300" />
+              <ChevronRight size={20} className="text-muted-foreground" />
             </button>
           </div>
         </div>
@@ -252,16 +259,21 @@ export default function Devices() {
 
   // Device list view
   return (
-    <div className="mobile-page">
+    <div className="mobile-page bg-gray-50">
       {/* Header */}
-      <header className="mobile-header">
-        <h1 className="mobile-header-title">{t("devices.title")}</h1>
+      <header className="mobile-header bg-white border-b border-gray-100">
+        <h1 className="text-xl font-bold text-foreground">
+          {language === 'ru' ? 'Мои изделия' : 'My Devices'}
+        </h1>
+        <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center">
+          <CorsetIcon size={20} className="text-teal-600" />
+        </div>
       </header>
 
-      {/* Categories */}
-      <div className="px-4 py-3 bg-white border-b overflow-x-auto scrollbar-hide">
-        <div className="flex gap-2">
-          {categories.map((cat) => (
+      <PullToRefresh onRefresh={handleRefresh} className="mobile-content has-bottom-nav">
+        {/* Categories */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-2 -mx-4 px-4">
+          {categories.map(cat => (
             <button
               key={cat.id}
               onClick={() => {
@@ -270,110 +282,126 @@ export default function Devices() {
               }}
               className={cn(
                 "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all",
-                activeCategory === cat.id 
-                  ? "bg-teal-500 text-white" 
-                  : "bg-gray-100 text-gray-600 active:bg-gray-200"
+                activeCategory === cat.id
+                  ? "bg-teal-500 text-white"
+                  : "bg-white text-muted-foreground border border-gray-200"
               )}
             >
               {cat.label}
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Content */}
-      <PullToRefresh onRefresh={handleRefresh} className="mobile-content has-bottom-nav">
-        {/* MIS Status */}
-        <div className="bg-teal-50 rounded-2xl p-4 mb-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center">
-            <Shield size={20} className="text-teal-600" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-teal-800">{t("devices.fromMIS")}</p>
-            <p className="text-xs text-teal-600">
-              {language === 'ru' ? 'Синхронизировано' : 'Synced'}: {new Date().toLocaleTimeString(language === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 size={32} className="text-teal-500 animate-spin mb-4" />
+            <p className="text-muted-foreground">
+              {language === 'ru' ? 'Загрузка...' : 'Loading...'}
             </p>
           </div>
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-        </div>
+        )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-white rounded-2xl p-4 text-center shadow-sm">
-            <p className="text-2xl font-bold text-teal-600">{mockDevices.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {language === 'ru' ? 'Всего' : 'Total'}
+        {/* Error State */}
+        {error && !isLoading && (
+          <div className="bg-red-50 rounded-2xl p-6 text-center">
+            <AlertTriangle size={32} className="text-red-500 mx-auto mb-3" />
+            <p className="text-red-700 font-medium mb-2">
+              {language === 'ru' ? 'Ошибка загрузки' : 'Loading error'}
+            </p>
+            <p className="text-sm text-red-600 mb-4">
+              {language === 'ru' ? 'Не удалось загрузить список изделий' : 'Failed to load devices'}
+            </p>
+            <button 
+              onClick={() => refetch()}
+              className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium"
+            >
+              {language === 'ru' ? 'Повторить' : 'Retry'}
+            </button>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !error && filteredDevices.length === 0 && (
+          <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+              <CorsetIcon size={32} className="text-gray-400" />
+            </div>
+            <p className="text-muted-foreground">
+              {language === 'ru' ? 'Нет изделий' : 'No devices'}
             </p>
           </div>
-          <div className="bg-white rounded-2xl p-4 text-center shadow-sm">
-            <p className="text-2xl font-bold text-green-500">
-              {mockDevices.filter(d => d.status === 'in_use').length}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {language === 'ru' ? 'Активных' : 'Active'}
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl p-4 text-center shadow-sm">
-            <p className="text-2xl font-bold text-teal-500">
-              {mockDevices.filter(d => d.status === 'manufacturing').length}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {language === 'ru' ? 'В работе' : 'In progress'}
-            </p>
-          </div>
-        </div>
+        )}
 
-        {/* Devices List */}
-        <div className="space-y-3 mb-20">
-          {filteredDevices.map((device) => {
-            const statusInfo = getStatusInfo(device.status);
-            const StatusIcon = statusInfo.icon;
+        {/* Device List */}
+        {!isLoading && !error && filteredDevices.length > 0 && (
+          <div className="space-y-3">
+            {filteredDevices.map(device => {
+              const statusInfo = getStatusInfo(device.status);
+              const StatusIcon = statusInfo.icon;
 
-            return (
-              <div
-                key={device.id}
-                className="mobile-card card-interactive"
-                onClick={() => {
-                  haptic();
-                  setSelectedDevice(device);
-                }}
-              >
-                <div className="flex items-center gap-4">
-                  {/* Image */}
-                  <div className="w-16 h-16 rounded-2xl bg-teal-100 flex items-center justify-center text-3xl flex-shrink-0">
-                    {device.image}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-foreground">{device.name}</h3>
-                        {device.model && (
-                          <p className="text-sm text-muted-foreground">{device.model}</p>
-                        )}
-                      </div>
-                      <ChevronRight size={20} className="text-gray-300 flex-shrink-0 mt-1" />
+              return (
+                <button
+                  key={device.id}
+                  onClick={() => {
+                    haptic();
+                    setSelectedDevice(device);
+                  }}
+                  className="w-full mobile-card card-interactive"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-teal-100 flex items-center justify-center text-2xl flex-shrink-0">
+                      {device.image}
                     </div>
-
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex-1 min-w-0 text-left">
+                      <h3 className="font-semibold text-foreground truncate">{device.name}</h3>
+                      {device.model && (
+                        <p className="text-sm text-muted-foreground truncate">{device.model}</p>
+                      )}
                       <div className={cn(
-                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium mt-1",
                         statusInfo.color
                       )}>
                         {StatusIcon && <StatusIcon size={10} />}
                         {statusInfo.label}
                       </div>
                     </div>
+                    <ChevronRight size={20} className="text-muted-foreground flex-shrink-0" />
                   </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </PullToRefresh>
 
       <MobileBottomNav />
     </div>
   );
+}
+
+// Helper functions
+function mapDeviceStatus(status: string): Device['status'] {
+  const statusMap: Record<string, Device['status']> = {
+    'active': 'in_use',
+    'in_use': 'in_use',
+    'used': 'in_use',
+    'manufacturing': 'manufacturing',
+    'in_production': 'manufacturing',
+    'ready': 'ready',
+    'completed': 'ready',
+    'warranty_ending': 'warranty_ending',
+    'warranty_soon': 'warranty_ending',
+  };
+  return statusMap[status?.toLowerCase()] || 'in_use';
+}
+
+function getDeviceEmoji(type: string): string {
+  const emojiMap: Record<string, string> = {
+    'corset': '🦴',
+    'orthosis': '👟',
+    'prosthesis': '🦿',
+    'brace': '🦴',
+  };
+  return emojiMap[type?.toLowerCase()] || '📦';
 }

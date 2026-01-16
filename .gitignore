@@ -105,3 +105,19 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+deploy/ssl/
+
+# Docker volumes data
+postgres-data/
+redis-data/
+ollama-data/
+
+# Secrets (never commit!)
+.env.production
+secrets/
+*.secret

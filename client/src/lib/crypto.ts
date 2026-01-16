@@ -255,42 +255,77 @@ export async function generateKeyFingerprint(publicKey: string): Promise<string>
   return fingerprint;
 }
 
+import { secureKeyStore, migrateFromLocalStorage } from './secureKeyStore';
+
 /**
- * Хранилище ключей в localStorage (в продакшене использовать IndexedDB с шифрованием)
+ * Хранилище ключей с использованием IndexedDB (безопасное хранилище)
+ * 
+ * При первом запуске автоматически мигрирует ключи из localStorage
  */
 export const keyStore = {
-  PRIVATE_KEY: 'scolio_messenger_private_key',
-  PUBLIC_KEY: 'scolio_messenger_public_key',
-  
-  async getOrCreateKeyPair(): Promise<{ publicKey: string; privateKey: string }> {
-    const existingPrivate = localStorage.getItem(this.PRIVATE_KEY);
-    const existingPublic = localStorage.getItem(this.PUBLIC_KEY);
+  _initialized: false,
+  _initPromise: null as Promise<void> | null,
+
+  /**
+   * Инициализация и миграция ключей
+   */
+  async _ensureInitialized(): Promise<void> {
+    if (this._initialized) return;
     
-    if (existingPrivate && existingPublic) {
-      return {
-        privateKey: existingPrivate,
-        publicKey: existingPublic,
-      };
+    if (!this._initPromise) {
+      this._initPromise = (async () => {
+        // Мигрируем ключи из localStorage если есть
+        await migrateFromLocalStorage();
+        this._initialized = true;
+      })();
     }
     
-    const keyPair = await generateKeyPair();
-    localStorage.setItem(this.PRIVATE_KEY, keyPair.privateKey);
-    localStorage.setItem(this.PUBLIC_KEY, keyPair.publicKey);
+    await this._initPromise;
+  },
+
+  async getOrCreateKeyPair(): Promise<{ publicKey: string; privateKey: string; fingerprint?: string }> {
+    await this._ensureInitialized();
     
-    return keyPair;
+    return secureKeyStore.getOrCreateKeyPair(generateKeyPair);
   },
   
-  getPublicKey(): string | null {
-    return localStorage.getItem(this.PUBLIC_KEY);
+  async getPublicKey(): Promise<string | null> {
+    await this._ensureInitialized();
+    return secureKeyStore.getPublicKey();
   },
   
-  getPrivateKey(): string | null {
-    return localStorage.getItem(this.PRIVATE_KEY);
+  async getPrivateKey(): Promise<string | null> {
+    await this._ensureInitialized();
+    return secureKeyStore.getPrivateKey();
+  },
+
+  async getFingerprint(): Promise<string | null> {
+    await this._ensureInitialized();
+    return secureKeyStore.getFingerprint();
   },
   
-  clearKeys(): void {
-    localStorage.removeItem(this.PRIVATE_KEY);
-    localStorage.removeItem(this.PUBLIC_KEY);
+  async clearKeys(): Promise<void> {
+    await secureKeyStore.clearKeys();
+    this._initialized = false;
+    this._initPromise = null;
+  },
+
+  /**
+   * Экспорт ключей для резервного копирования
+   */
+  async exportKeys(password: string): Promise<string | null> {
+    return secureKeyStore.exportKeys(password);
+  },
+
+  /**
+   * Импорт ключей из резервной копии
+   */
+  async importKeys(encryptedData: string, password: string): Promise<boolean> {
+    const result = await secureKeyStore.importKeys(encryptedData, password);
+    if (result) {
+      this._initialized = true;
+    }
+    return result;
   },
 };
 

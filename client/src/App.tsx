@@ -89,7 +89,7 @@ function Router() {
 
 function App() {
   return (
-    <ErrorBoundary>
+    <ErrorBoundary level="critical">
       <ThemeProvider defaultTheme="light">
         <LanguageProvider>
           <TooltipProvider>

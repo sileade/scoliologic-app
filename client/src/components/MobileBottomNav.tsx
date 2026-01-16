@@ -67,11 +67,17 @@ export function MobileBottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 safe-area-bottom z-50 md:hidden">
+    <nav 
+      className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 safe-area-bottom z-50 md:hidden"
+      role="navigation"
+      aria-label="Основная навигация"
+    >
       <div className="flex items-center justify-around h-16">
         {navItems.map((item) => (
           <Link key={item.path} href={item.path}>
             <a 
+              aria-label={`${item.label}${item.badge ? `, ${item.badge} непрочитанных` : ''}`}
+              aria-current={isActive(item.path) ? 'page' : undefined}
               className={`flex flex-col items-center justify-center min-w-[64px] h-full relative touch-manipulation active:scale-95 transition-transform ${
                 isActive(item.path) 
                   ? 'text-teal-600' 
@@ -85,7 +91,10 @@ export function MobileBottomNav() {
               <div className="relative">
                 {item.icon}
                 {item.badge && item.badge > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  <span 
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+                    aria-hidden="true"
+                  >
                     {item.badge > 9 ? '9+' : item.badge}
                   </span>
                 )}
