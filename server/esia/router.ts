@@ -1,5 +1,10 @@
 /**
  * Express роутер для обработки OAuth 2.0 flow с ЕСИА
+ * 
+ * БЕЗОПАСНОСТЬ:
+ * - State хранится в Redis для поддержки масштабирования
+ * - TTL 10 минут для защиты от replay-атак
+ * - Fallback на in-memory для локальной разработки
  */
 
 import { Router, Request, Response } from "express";
@@ -12,38 +17,97 @@ import {
   decodeIdToken,
   getLogoutUrl,
   isVerificationSufficient,
+  isProductionReady,
 } from "./service";
 import { ESIAUserInfo, ESIAError } from "./config";
+import { cacheGet, cacheSet, cacheDel, isRedisConnected } from "../lib/redis";
 
 const router = Router();
 
-// Хранилище state для защиты от CSRF (в продакшене использовать Redis)
-const stateStore = new Map<string, { createdAt: number; returnUrl?: string }>();
+// Константы
+const STATE_TTL_SECONDS = 600; // 10 минут
+const STATE_PREFIX = "esia_state:";
 
-// Очистка устаревших state (старше 10 минут)
+// Fallback хранилище state для локальной разработки (когда Redis недоступен)
+const localStateStore = new Map<string, { createdAt: number; returnUrl?: string }>();
+
+// Очистка устаревших state из локального хранилища
 setInterval(() => {
   const now = Date.now();
-  const entries = Array.from(stateStore.entries());
+  const entries = Array.from(localStateStore.entries());
   for (const [state, data] of entries) {
-    if (now - data.createdAt > 10 * 60 * 1000) {
-      stateStore.delete(state);
+    if (now - data.createdAt > STATE_TTL_SECONDS * 1000) {
+      localStateStore.delete(state);
     }
   }
 }, 60 * 1000);
 
 /**
+ * Сохранение state в Redis или локальное хранилище
+ */
+async function saveState(state: string, returnUrl?: string): Promise<boolean> {
+  const data = {
+    createdAt: Date.now(),
+    returnUrl: returnUrl || "/",
+  };
+  
+  if (isRedisConnected()) {
+    const success = await cacheSet(
+      `${STATE_PREFIX}${state}`,
+      data,
+      { ttl: STATE_TTL_SECONDS }
+    );
+    if (success) {
+      console.log(`[ESIA] State saved to Redis: ${state.substring(0, 8)}...`);
+      return true;
+    }
+  }
+  
+  // Fallback на локальное хранилище
+  localStateStore.set(state, data);
+  console.warn(`[ESIA] State saved to local storage (Redis unavailable): ${state.substring(0, 8)}...`);
+  return true;
+}
+
+/**
+ * Получение и удаление state из Redis или локального хранилища
+ */
+async function consumeState(state: string): Promise<{ returnUrl?: string } | null> {
+  // Пробуем Redis
+  if (isRedisConnected()) {
+    const data = await cacheGet<{ createdAt: number; returnUrl?: string }>(
+      `${STATE_PREFIX}${state}`
+    );
+    
+    if (data) {
+      // Удаляем state после использования (one-time use)
+      await cacheDel(`${STATE_PREFIX}${state}`);
+      console.log(`[ESIA] State consumed from Redis: ${state.substring(0, 8)}...`);
+      return data;
+    }
+  }
+  
+  // Fallback на локальное хранилище
+  const localData = localStateStore.get(state);
+  if (localData) {
+    localStateStore.delete(state);
+    console.log(`[ESIA] State consumed from local storage: ${state.substring(0, 8)}...`);
+    return localData;
+  }
+  
+  return null;
+}
+
+/**
  * GET /auth/esia/login
  * Инициирует процесс авторизации через ЕСИА
  */
-router.get("/login", (req: Request, res: Response) => {
+router.get("/login", async (req: Request, res: Response) => {
   const state = generateState();
   const returnUrl = req.query.returnUrl as string;
   
   // Сохраняем state для проверки при callback
-  stateStore.set(state, {
-    createdAt: Date.now(),
-    returnUrl: returnUrl || "/",
-  });
+  await saveState(state, returnUrl);
   
   const authUrl = getAuthorizationUrl(state);
   res.redirect(authUrl);
@@ -67,12 +131,12 @@ router.get("/callback", async (req: Request, res: Response) => {
     return res.redirect("/auth/error?error=missing_params");
   }
   
-  // Проверка state для защиты от CSRF
-  const stateData = stateStore.get(state as string);
+  // Проверка и потребление state для защиты от CSRF
+  const stateData = await consumeState(state as string);
   if (!stateData) {
+    console.warn(`[ESIA] Invalid or expired state: ${(state as string).substring(0, 8)}...`);
     return res.redirect("/auth/error?error=invalid_state");
   }
-  stateStore.delete(state as string);
   
   try {
     // Обмен code на access_token
@@ -209,6 +273,30 @@ router.get("/status", async (req: Request, res: Response) => {
   } catch {
     res.json({ authenticated: false });
   }
+});
+
+/**
+ * GET /auth/esia/health
+ * Проверка готовности ЕСИА интеграции
+ */
+router.get("/health", async (req: Request, res: Response) => {
+  const productionStatus = isProductionReady();
+  const redisStatus = isRedisConnected();
+  
+  res.json({
+    esia: {
+      productionReady: productionStatus.ready,
+      missingConfig: productionStatus.missing,
+    },
+    redis: {
+      connected: redisStatus,
+      stateStorage: redisStatus ? "redis" : "local",
+    },
+    warnings: [
+      ...(!productionStatus.ready ? ["ESIA not configured for production"] : []),
+      ...(!redisStatus ? ["Redis unavailable, using local state storage (not scalable)"] : []),
+    ],
+  });
 });
 
 export default router;

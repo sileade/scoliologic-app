@@ -2,13 +2,14 @@
  * Сервис защищённого мессенджера с интегрированным AI-ассистентом
  * 
  * Логика AI-ассистента:
- * 1. AI мониторит ВСЕ сообщения пациентов в чатах с врачами
- * 2. AI отвечает первым, пока врач не ответил
- * 3. Когда врач отвечает, AI уходит в фон
- * 4. Если врач не отвечает более 1.5 часа, AI снова включается
+ * 1. AI работает ТОЛЬКО в специальных чатах типа "patient_ai"
+ * 2. В чатах с врачами AI НЕ имеет доступа к содержимому сообщений (E2EE)
+ * 3. AI может отвечать только на неконфиденциальные общие вопросы
  * 
- * Сервер НЕ имеет доступа к содержимому сообщений (E2EE).
- * AI получает только незашифрованные сообщения для анализа.
+ * БЕЗОПАСНОСТЬ:
+ * - Сервер НЕ имеет доступа к содержимому зашифрованных сообщений
+ * - plainText НИКОГДА не передается на сервер для чатов с врачами
+ * - AI работает только с явным согласием пользователя в отдельном чате
  */
 
 import { OllamaService } from '../ai/ollama';
@@ -35,6 +36,10 @@ export interface Chat {
   };
 }
 
+/**
+ * Payload для зашифрованных сообщений
+ * ВАЖНО: plainText удален из интерфейса для обеспечения E2EE
+ */
 export interface EncryptedMessagePayload {
   chatId: string;
   senderId: string;
@@ -44,8 +49,18 @@ export interface EncryptedMessagePayload {
   salt: string;
   messageType: "text" | "image" | "file" | "voice";
   replyToId?: string;
-  // Для AI анализа (опционально, только для текстовых сообщений)
-  plainText?: string;
+  // УДАЛЕНО: plainText - нарушает E2EE безопасность
+}
+
+/**
+ * Payload для сообщений в AI-чате (без шифрования)
+ * Используется ТОЛЬКО для прямого общения с AI-ассистентом
+ */
+export interface AIMessagePayload {
+  chatId: string;
+  senderId: string;
+  message: string;
+  messageType: "text";
 }
 
 export interface StoredMessage {
@@ -63,7 +78,7 @@ export interface StoredMessage {
   deliveredAt?: Date;
   readAt?: Date;
   isAiResponse?: boolean; // Пометка что это ответ AI
-  aiContext?: string; // Контекст для AI (не шифруется)
+  aiContext?: string; // Контекст для AI (только в AI-чатах)
 }
 
 export interface PublicKeyRecord {
@@ -77,7 +92,7 @@ export interface PublicKeyRecord {
 export interface AIResponseResult {
   shouldRespond: boolean;
   response?: string;
-  reason: 'doctor_active' | 'ai_timeout' | 'patient_message' | 'ai_disabled';
+  reason: 'doctor_active' | 'ai_timeout' | 'patient_message' | 'ai_disabled' | 'not_ai_chat';
 }
 
 // In-memory хранилище (в продакшене использовать PostgreSQL/Redis)
@@ -101,11 +116,12 @@ function generateId(): string {
 
 /**
  * Проверка, должен ли AI отвечать в чате
+ * AI отвечает ТОЛЬКО в чатах типа patient_ai
  */
 export function shouldAIRespond(chat: Chat): AIResponseResult {
-  // AI не работает в чатах типа patient_ai (там он и так основной)
-  if (chat.type === 'patient_ai') {
-    return { shouldRespond: true, reason: 'patient_message' };
+  // AI работает ТОЛЬКО в специальных AI-чатах
+  if (chat.type !== 'patient_ai') {
+    return { shouldRespond: false, reason: 'not_ai_chat' };
   }
   
   // Если AI отключен в чате
@@ -113,26 +129,24 @@ export function shouldAIRespond(chat: Chat): AIResponseResult {
     return { shouldRespond: false, reason: 'ai_disabled' };
   }
   
-  // Если врач недавно отвечал (менее 1.5 часа назад)
-  if (chat.lastDoctorResponseAt) {
-    const timeSinceDoctor = Date.now() - chat.lastDoctorResponseAt.getTime();
-    if (timeSinceDoctor < AI_RETURN_TIMEOUT_MS) {
-      return { shouldRespond: false, reason: 'doctor_active' };
-    }
-  }
-  
-  // AI должен ответить (врач не отвечал или прошло более 1.5 часа)
-  return { shouldRespond: true, reason: 'ai_timeout' };
+  return { shouldRespond: true, reason: 'patient_message' };
 }
 
 /**
- * Обработка сообщения пациента и генерация ответа AI
+ * Обработка сообщения пациента в AI-чате и генерация ответа
+ * ВАЖНО: Работает ТОЛЬКО для чатов типа patient_ai
  */
-export async function processPatientMessage(
+export async function processAIChatMessage(
   chat: Chat,
   patientMessage: string,
   patientId: string
 ): Promise<StoredMessage | null> {
+  // Проверяем что это AI-чат
+  if (chat.type !== 'patient_ai') {
+    console.warn(`[Security] Attempt to process AI message in non-AI chat: ${chat.id}`);
+    return null;
+  }
+  
   const aiCheck = shouldAIRespond(chat);
   
   if (!aiCheck.shouldRespond) {
@@ -141,30 +155,30 @@ export async function processPatientMessage(
   }
   
   try {
-    // Получаем контекст последних сообщений для AI
+    // Получаем контекст последних сообщений для AI (только из AI-чата)
     const recentMessages = getChatMessages(chat.id, 10);
     const context = recentMessages.map(m => ({
-      role: m.senderId === patientId ? 'user' : (m.isAiResponse ? 'assistant' : 'doctor'),
-      content: m.aiContext || '[зашифрованное сообщение]'
+      role: m.senderId === patientId ? 'user' : 'assistant',
+      content: m.aiContext || '[сообщение]'
     }));
     
     // Системный промпт для медицинского AI
     const systemPrompt = `Ты - AI-ассистент клиники Scoliologic, специализирующейся на лечении сколиоза и деформаций позвоночника.
 
 Твоя роль:
-- Отвечать на вопросы пациентов пока врач недоступен
-- Давать общую информацию о лечении сколиоза, корсетотерапии, упражнениях
+- Отвечать на ОБЩИЕ вопросы о сколиозе и корсетотерапии
+- Давать общую информацию о лечении сколиоза, упражнениях
 - Напоминать о важности соблюдения режима ношения корсета
 - При серьёзных жалобах рекомендовать обратиться к врачу
 
-Ограничения:
+СТРОГИЕ ОГРАНИЧЕНИЯ:
 - НЕ ставь диагнозы
 - НЕ назначай лечение
 - НЕ отменяй назначения врача
+- НЕ обсуждай конкретные медицинские данные пациента
 - При острой боли или ухудшении состояния - рекомендуй срочно связаться с врачом
 
-Врач: ${chat.metadata?.doctorName || 'Ваш лечащий врач'}
-Специализация: ${chat.metadata?.specialty || 'Ортопед-вертебролог'}
+Это отдельный чат с AI-ассистентом. Для связи с врачом пациенту нужно использовать защищённый чат с врачом.
 
 Отвечай кратко, по существу, на русском языке. В конце сообщения добавь пометку что это автоматический ответ AI-ассистента.`;
 
@@ -181,7 +195,7 @@ export async function processPatientMessage(
       chatId: chat.id,
       senderId: AI_ASSISTANT_ID,
       senderPublicKey: '', // AI не использует E2EE
-      ciphertext: '', // Ответ AI не шифруется
+      ciphertext: '', // Ответ AI не шифруется (это AI-чат)
       iv: '',
       salt: '',
       messageType: 'text',
@@ -205,7 +219,7 @@ export async function processPatientMessage(
     queue.push(aiMessage);
     undeliveredMessages.set(patientId, queue);
     
-    console.log(`AI ответил в чате ${chat.id}`);
+    console.log(`AI ответил в AI-чате ${chat.id}`);
     
     return aiMessage;
     
@@ -216,7 +230,7 @@ export async function processPatientMessage(
 }
 
 /**
- * Запуск таймера возврата AI в чат
+ * Запуск таймера возврата AI в чат (для информирования пользователя)
  */
 function startAIReturnTimer(chatId: string): void {
   // Очищаем предыдущий таймер
@@ -228,9 +242,9 @@ function startAIReturnTimer(chatId: string): void {
   // Устанавливаем новый таймер на 1.5 часа
   const timer = setTimeout(() => {
     const chat = chats.get(chatId);
-    if (chat && !chat.aiActive) {
-      chat.aiActive = true;
-      console.log(`AI вернулся в чат ${chatId} после таймаута 1.5 часа`);
+    if (chat) {
+      // Просто обновляем статус, AI не получает доступ к сообщениям
+      console.log(`Таймаут 1.5 часа в чате ${chatId}`);
     }
     aiReturnTimers.delete(chatId);
   }, AI_RETURN_TIMEOUT_MS);
@@ -301,7 +315,7 @@ export function createPatientDoctorChat(
     type: "patient_doctor",
     createdAt: new Date(),
     updatedAt: new Date(),
-    aiActive: true, // AI активен по умолчанию
+    aiActive: false, // AI НЕ активен в чатах с врачами (E2EE)
     metadata: {
       doctorId,
       doctorName,
@@ -372,12 +386,20 @@ export function getUserChats(userId: string): Chat[] {
 }
 
 /**
- * Сохранение зашифрованного сообщения с обработкой AI
+ * Сохранение зашифрованного сообщения (для чатов с врачами)
+ * ВАЖНО: Сервер НЕ имеет доступа к содержимому сообщений
  */
-export async function storeMessage(
+export async function storeEncryptedMessage(
   payload: EncryptedMessagePayload,
   isDoctor: boolean = false
-): Promise<{ message: StoredMessage; aiResponse?: StoredMessage }> {
+): Promise<{ message: StoredMessage }> {
+  const chat = chats.get(payload.chatId);
+  
+  // Проверяем что это НЕ AI-чат
+  if (chat?.type === 'patient_ai') {
+    throw new Error('Use storeAIMessage for AI chats');
+  }
+  
   const message: StoredMessage = {
     id: generateId(),
     chatId: payload.chatId,
@@ -390,7 +412,7 @@ export async function storeMessage(
     replyToId: payload.replyToId,
     timestamp: new Date(),
     status: "sent",
-    aiContext: payload.plainText, // Сохраняем текст для AI контекста
+    // НЕ сохраняем aiContext - сервер не имеет доступа к содержимому
   };
   
   // Сохраняем сообщение
@@ -399,7 +421,6 @@ export async function storeMessage(
   messagesStore.set(payload.chatId, chatMessages);
   
   // Обновляем время последнего сообщения в чате
-  const chat = chats.get(payload.chatId);
   if (chat) {
     chat.lastMessageAt = message.timestamp;
     chat.updatedAt = message.timestamp;
@@ -407,9 +428,8 @@ export async function storeMessage(
     // Если это сообщение от врача
     if (isDoctor) {
       chat.lastDoctorResponseAt = message.timestamp;
-      chat.aiActive = false; // Деактивируем AI когда врач отвечает
-      startAIReturnTimer(chat.id); // Запускаем таймер возврата AI
-      console.log(`Врач ответил в чате ${chat.id}, AI деактивирован`);
+      startAIReturnTimer(chat.id);
+      console.log(`Врач ответил в чате ${chat.id}`);
     }
     
     // Добавляем в очередь недоставленных для других участников
@@ -420,20 +440,71 @@ export async function storeMessage(
         undeliveredMessages.set(participantId, queue);
       }
     }
-    
-    // Если это сообщение от пациента и есть текст - обрабатываем AI
-    let aiResponse: StoredMessage | null = null;
-    if (!isDoctor && payload.plainText && chat.type !== 'patient_ai') {
-      aiResponse = await processPatientMessage(chat, payload.plainText, payload.senderId);
-    } else if (!isDoctor && payload.plainText && chat.type === 'patient_ai') {
-      // Прямой чат с AI
-      aiResponse = await processPatientMessage(chat, payload.plainText, payload.senderId);
-    }
-    
-    return { message, aiResponse: aiResponse || undefined };
   }
   
   return { message };
+}
+
+/**
+ * Сохранение сообщения в AI-чате (без шифрования)
+ */
+export async function storeAIMessage(
+  payload: AIMessagePayload
+): Promise<{ message: StoredMessage; aiResponse?: StoredMessage }> {
+  const chat = chats.get(payload.chatId);
+  
+  // Проверяем что это AI-чат
+  if (!chat || chat.type !== 'patient_ai') {
+    throw new Error('AI messages are only allowed in AI chats');
+  }
+  
+  const message: StoredMessage = {
+    id: generateId(),
+    chatId: payload.chatId,
+    senderId: payload.senderId,
+    senderPublicKey: '',
+    ciphertext: '',
+    iv: '',
+    salt: '',
+    messageType: payload.messageType,
+    timestamp: new Date(),
+    status: "sent",
+    aiContext: payload.message, // Сохраняем текст для AI контекста
+  };
+  
+  // Сохраняем сообщение
+  const chatMessages = messagesStore.get(payload.chatId) || [];
+  chatMessages.push(message);
+  messagesStore.set(payload.chatId, chatMessages);
+  
+  // Обновляем чат
+  chat.lastMessageAt = message.timestamp;
+  chat.updatedAt = message.timestamp;
+  
+  // Генерируем ответ AI
+  const aiResponse = await processAIChatMessage(chat, payload.message, payload.senderId);
+  
+  return { message, aiResponse: aiResponse || undefined };
+}
+
+/**
+ * Сохранение сообщения (обратная совместимость)
+ * @deprecated Use storeEncryptedMessage or storeAIMessage instead
+ */
+export async function storeMessage(
+  payload: EncryptedMessagePayload,
+  isDoctor: boolean = false
+): Promise<{ message: StoredMessage; aiResponse?: StoredMessage }> {
+  const chat = chats.get(payload.chatId);
+  
+  if (chat?.type === 'patient_ai') {
+    // Для AI-чатов используем новый метод
+    // Но так как plainText удален, это вызовет ошибку - что правильно
+    throw new Error('Use storeAIMessage for AI chats with AIMessagePayload');
+  }
+  
+  const result = await storeEncryptedMessage(payload, isDoctor);
+  return { message: result.message };
 }
 
 /**
@@ -512,10 +583,11 @@ export function getChat(chatId: string): Chat | undefined {
 
 /**
  * Включение/выключение AI в чате
+ * ВАЖНО: Работает только для AI-чатов
  */
 export function toggleAI(chatId: string, enabled: boolean): boolean {
   const chat = chats.get(chatId);
-  if (chat) {
+  if (chat && chat.type === 'patient_ai') {
     chat.aiActive = enabled;
     if (!enabled) {
       // Очищаем таймер возврата
@@ -537,27 +609,18 @@ export function getAIStatus(chatId: string): {
   active: boolean;
   lastDoctorResponse?: Date;
   willReturnAt?: Date;
+  isAIChat: boolean;
 } {
   const chat = chats.get(chatId);
   if (!chat) {
-    return { active: false };
+    return { active: false, isAIChat: false };
   }
   
-  const result: {
-    active: boolean;
-    lastDoctorResponse?: Date;
-    willReturnAt?: Date;
-  } = {
+  return {
     active: chat.aiActive,
     lastDoctorResponse: chat.lastDoctorResponseAt,
+    isAIChat: chat.type === 'patient_ai',
   };
-  
-  // Если AI неактивен и есть время последнего ответа врача
-  if (!chat.aiActive && chat.lastDoctorResponseAt) {
-    result.willReturnAt = new Date(chat.lastDoctorResponseAt.getTime() + AI_RETURN_TIMEOUT_MS);
-  }
-  
-  return result;
 }
 
 /**
@@ -599,10 +662,12 @@ export function getMessengerStats(): {
   totalChats: number;
   totalMessages: number;
   activeUsers: number;
-  aiActiveChats: number;
+  aiChats: number;
+  doctorChats: number;
 } {
   let totalMessages = 0;
-  let aiActiveChats = 0;
+  let aiChats = 0;
+  let doctorChats = 0;
   
   const allMessages = Array.from(messagesStore.values());
   for (const chatMessages of allMessages) {
@@ -611,8 +676,10 @@ export function getMessengerStats(): {
   
   const allChats = Array.from(chats.values());
   for (const chat of allChats) {
-    if (chat.aiActive) {
-      aiActiveChats++;
+    if (chat.type === 'patient_ai') {
+      aiChats++;
+    } else if (chat.type === 'patient_doctor') {
+      doctorChats++;
     }
   }
   
@@ -620,6 +687,7 @@ export function getMessengerStats(): {
     totalChats: chats.size,
     totalMessages,
     activeUsers: publicKeys.size,
-    aiActiveChats,
+    aiChats,
+    doctorChats,
   };
 }

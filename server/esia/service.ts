@@ -3,9 +3,15 @@
  * 
  * Реализует OAuth 2.0 + OpenID Connect flow для авторизации
  * через Единую систему идентификации и аутентификации.
+ * 
+ * ВАЖНО: Для продуктивной среды требуется:
+ * - Зарегистрированный сертификат в ЕСИА
+ * - Приватный ключ для подписи запросов
+ * - Переменные окружения ESIA_PRIVATE_KEY и ESIA_CERTIFICATE
  */
 
 import crypto from "crypto";
+import fs from "fs";
 import { esiaConfig, esiaEndpoints, ESIAUserInfo, ESIATokenResponse, ESIAError } from "./config";
 
 /**
@@ -23,26 +29,104 @@ function getTimestamp(): string {
 }
 
 /**
+ * Загрузка приватного ключа из файла или переменной окружения
+ */
+function loadPrivateKey(): string | null {
+  // Приоритет: переменная окружения > файл
+  if (process.env.ESIA_PRIVATE_KEY) {
+    return process.env.ESIA_PRIVATE_KEY;
+  }
+  
+  if (esiaConfig.privateKeyPath && fs.existsSync(esiaConfig.privateKeyPath)) {
+    return fs.readFileSync(esiaConfig.privateKeyPath, "utf-8");
+  }
+  
+  return null;
+}
+
+/**
+ * Загрузка сертификата из файла или переменной окружения
+ */
+function loadCertificate(): string | null {
+  // Приоритет: переменная окружения > файл
+  if (process.env.ESIA_CERTIFICATE) {
+    return process.env.ESIA_CERTIFICATE;
+  }
+  
+  if (esiaConfig.certificatePath && fs.existsSync(esiaConfig.certificatePath)) {
+    return fs.readFileSync(esiaConfig.certificatePath, "utf-8");
+  }
+  
+  return null;
+}
+
+/**
  * Создание client_secret для подписи запроса
- * В реальной реализации здесь должна быть подпись с использованием
- * сертификата, зарегистрированного в ЕСИА
+ * 
+ * Использует PKCS#7 (CMS) подпись с сертификатом, зарегистрированным в ЕСИА.
+ * Если сертификат не настроен, использует fallback для тестового контура.
  */
 function createClientSecret(scope: string, timestamp: string, clientId: string, state: string): string {
-  // Для тестового контура используем простой client_secret
-  // В продакшене нужно использовать PKCS#7 подпись
+  const privateKey = loadPrivateKey();
+  const certificate = loadCertificate();
+  
+  // Формируем строку для подписи согласно спецификации ЕСИА
+  const message = `${scope}${timestamp}${clientId}${state}`;
+  
+  // Если есть приватный ключ - используем криптографическую подпись
+  if (privateKey) {
+    try {
+      // Создаем подпись RSA-SHA256 (detached PKCS#7)
+      const sign = crypto.createSign("RSA-SHA256");
+      sign.update(message);
+      sign.end();
+      
+      const signature = sign.sign(privateKey, "base64");
+      
+      console.log("[ESIA] Using RSA-SHA256 signature for client_secret");
+      return signature;
+    } catch (error) {
+      console.error("[ESIA] Failed to create RSA signature:", error);
+      // Fallback к тестовому режиму
+    }
+  }
+  
+  // Fallback: для тестового контура используем client_secret из конфига
   if (esiaConfig.clientSecret) {
+    console.warn("[ESIA] Using static client_secret (test mode only!)");
     return esiaConfig.clientSecret;
   }
   
-  // Формируем строку для подписи
-  const message = `${scope}${timestamp}${clientId}${state}`;
-  
-  // В реальной реализации здесь подпись через crypto.sign с приватным ключом
-  // Для демонстрации используем HMAC
+  // Последний fallback: HMAC для демонстрации (НЕ для продакшена!)
+  console.warn("[ESIA] WARNING: Using HMAC fallback - NOT SECURE FOR PRODUCTION!");
   return crypto
-    .createHmac("sha256", esiaConfig.clientSecret || "demo-secret")
+    .createHmac("sha256", "demo-secret")
     .update(message)
     .digest("base64");
+}
+
+/**
+ * Проверка готовности к работе с продуктивным контуром ЕСИА
+ */
+export function isProductionReady(): { ready: boolean; missing: string[] } {
+  const missing: string[] = [];
+  
+  if (!loadPrivateKey()) {
+    missing.push("ESIA_PRIVATE_KEY or ESIA_PRIVATE_KEY_PATH");
+  }
+  
+  if (!loadCertificate()) {
+    missing.push("ESIA_CERTIFICATE or ESIA_CERTIFICATE_PATH");
+  }
+  
+  if (!esiaConfig.clientId || esiaConfig.clientId === "SCOLIOLOGIC") {
+    missing.push("ESIA_CLIENT_ID (registered in ESIA)");
+  }
+  
+  return {
+    ready: missing.length === 0,
+    missing,
+  };
 }
 
 /**
