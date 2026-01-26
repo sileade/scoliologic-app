@@ -340,11 +340,11 @@ trpc.ai.health()               // Статус Ollama
 
 | Dashboard | Мессенджер | Документы |
 |:---------:|:----------:|:---------:|
-| ![Dashboard](docs/screenshots/01_dashboard.png) | ![Messenger](docs/screenshots/02_messenger.png) | ![Documents](docs/screenshots/03_documents.png) |
+| ![Dashboard](docs/screenshots/02_dashboard.png) | ![Messenger](docs/screenshots/03_messages.png) | ![Documents](docs/screenshots/03_documents.png) |
 
 | Изделия | Авторизация |
 |:-------:|:-----------:|
-| ![Devices](docs/screenshots/04_devices.png) | ![Auth](docs/screenshots/05_auth.png) |
+| ![Devices](docs/screenshots/04_devices.png) | ![Auth](docs/screenshots/01_auth.png) |
 
 ---
 
