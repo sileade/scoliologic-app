@@ -307,13 +307,9 @@ trpc.ai.health()               // Статус Ollama
 
 ### Мобильные скриншоты
 
-| Dashboard | Мессенджер | Документы |
-|:---------:|:----------:|:---------:|
-| ![Dashboard](docs/screenshots/mobile/01_dashboard_mobile.png) | ![Messenger](docs/screenshots/mobile/02_messenger_mobile.png) | ![Documents](docs/screenshots/mobile/03_documents_mobile.png) |
-
-| Изделия | Авторизация |
-|:-------:|:-----------:|
-| ![Devices](docs/screenshots/mobile/04_devices_mobile.png) | ![Auth](docs/screenshots/mobile/05_auth_mobile.png) |
+| Авторизация | Dashboard | Сообщения | Изделия |
+|:-----------:|:---------:|:---------:|:-------:|
+| ![Auth](docs/screenshots/mobile/01_auth_mobile.png) | ![Dashboard](docs/screenshots/mobile/02_dashboard_mobile.png) | ![Messages](docs/screenshots/mobile/03_messages_mobile.png) | ![Devices](docs/screenshots/mobile/04_devices_mobile.png) |
 
 ### Управление жестами
 
@@ -338,13 +334,13 @@ trpc.ai.health()               // Статус Ollama
 
 ## 🖼️ Desktop скриншоты
 
-| Dashboard | Мессенджер | Документы |
-|:---------:|:----------:|:---------:|
-| ![Dashboard](docs/screenshots/02_dashboard.png) | ![Messenger](docs/screenshots/03_messages.png) | ![Documents](docs/screenshots/03_documents.png) |
+| Авторизация | Dashboard | Сообщения |
+|:-----------:|:---------:|:---------:|
+| ![Auth](docs/screenshots/01_auth.png) | ![Dashboard](docs/screenshots/02_dashboard.png) | ![Messages](docs/screenshots/03_messages.png) |
 
-| Изделия | Авторизация |
-|:-------:|:-----------:|
-| ![Devices](docs/screenshots/04_devices.png) | ![Auth](docs/screenshots/01_auth.png) |
+| Изделия | Настройки |
+|:-------:|:---------:|
+| ![Devices](docs/screenshots/04_devices.png) | ![Settings](docs/screenshots/05_settings.png) |
 
 ---
 
