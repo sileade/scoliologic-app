@@ -1,10 +1,10 @@
 /**
  * tRPC роутер для защищённого мессенджера с интегрированным AI-ассистентом
  * 
- * AI-ассистент:
- * - Мониторит все сообщения пациентов
- * - Отвечает пока врач не ответил
- * - Возвращается через 1.5 часа если врач не отвечает
+ * БЕЗОПАСНОСТЬ:
+ * - AI работает ТОЛЬКО в специальных чатах типа "patient_ai"
+ * - В чатах с врачами используется E2EE, сервер НЕ имеет доступа к содержимому
+ * - Разделены API для зашифрованных сообщений и AI-чатов
  */
 
 import { z } from "zod";
@@ -15,7 +15,8 @@ import {
   createPatientDoctorChat,
   createAIChat,
   getUserChats,
-  storeMessage,
+  storeEncryptedMessage,
+  storeAIMessage,
   getChatMessages,
   getUndeliveredMessages,
   markAsDelivered,
@@ -90,8 +91,12 @@ export const messengerRouter = router({
       return getChat(input.chatId);
     }),
 
-  // Отправка зашифрованного сообщения
-  // plainText передаётся для AI-анализа (опционально)
+  /**
+   * Отправка зашифрованного сообщения (для чатов с врачами)
+   * 
+   * ВАЖНО: plainText НЕ передается на сервер для обеспечения E2EE
+   * Сервер хранит только зашифрованные данные
+   */
   sendMessage: protectedProcedure
     .input(z.object({
       chatId: z.string(),
@@ -101,13 +106,12 @@ export const messengerRouter = router({
       senderPublicKey: z.string(),
       messageType: z.enum(["text", "image", "file", "voice"]).default("text"),
       replyToId: z.string().optional(),
-      plainText: z.string().optional(), // Для AI-анализа
     }))
     .mutation(async ({ ctx, input }) => {
       const senderId = ctx.user.id.toString();
       const isDoctor = (ctx.user as any).role === 'doctor';
       
-      const result = await storeMessage({
+      const result = await storeEncryptedMessage({
         chatId: input.chatId,
         senderId,
         senderPublicKey: input.senderPublicKey,
@@ -116,8 +120,35 @@ export const messengerRouter = router({
         salt: input.salt,
         messageType: input.messageType,
         replyToId: input.replyToId,
-        plainText: input.plainText,
       }, isDoctor);
+      
+      return {
+        message: result.message,
+        aiResponse: null,
+        aiResponded: false,
+      };
+    }),
+
+  /**
+   * Отправка сообщения в AI-чат (без шифрования)
+   * 
+   * Используется ТОЛЬКО для прямого общения с AI-ассистентом
+   * Пользователь осведомлен, что сообщения не шифруются
+   */
+  sendAIMessage: protectedProcedure
+    .input(z.object({
+      chatId: z.string(),
+      message: z.string().min(1).max(10000),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const senderId = ctx.user.id.toString();
+      
+      const result = await storeAIMessage({
+        chatId: input.chatId,
+        senderId,
+        message: input.message,
+        messageType: "text",
+      });
       
       return {
         message: result.message,

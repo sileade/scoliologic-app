@@ -41,8 +41,15 @@ export function useMessenger({ language }: UseMessengerOptions) {
     }
   );
 
-  // Send message mutation
+  // Send encrypted message mutation (for doctor chats)
   const sendMessageMutation = trpc.messenger.sendMessage.useMutation({
+    onSuccess: () => {
+      refetchMessages();
+    },
+  });
+
+  // Send AI message mutation (for AI chats)
+  const sendAIMessageMutation = trpc.messenger.sendAIMessage.useMutation({
     onSuccess: () => {
       refetchMessages();
     },
@@ -139,14 +146,24 @@ export function useMessenger({ language }: UseMessengerOptions) {
     try {
       // Send to API - для упрощения отправляем plainText
       // В реальном приложении здесь должно быть E2E шифрование
-      await sendMessageMutation.mutateAsync({
-        chatId: selectedChat.id,
-        ciphertext: text, // Временно отправляем как есть
-        iv: 'temp-iv',
-        salt: 'temp-salt',
-        senderPublicKey: 'temp-key',
-        plainText: text, // Для AI-анализа
-      });
+      // Определяем тип чата и используем соответствующий API
+      if (selectedChat.type === 'support' || selectedChat.aiActive) {
+        // AI-чат: отправляем открытым текстом
+        await sendAIMessageMutation.mutateAsync({
+          chatId: selectedChat.id,
+          message: text,
+        });
+      } else {
+        // Чат с врачом: отправляем зашифрованным
+        // TODO: Реализовать реальное E2E шифрование
+        await sendMessageMutation.mutateAsync({
+          chatId: selectedChat.id,
+          ciphertext: text, // Временно отправляем как есть
+          iv: 'temp-iv',
+          salt: 'temp-salt',
+          senderPublicKey: 'temp-key',
+        });
+      }
 
       // Update status to sent
       setMessages(prev => 
