@@ -1,0 +1,104 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#0891b2', 'primaryTextColor': '#fff', 'primaryBorderColor': '#0e7490', 'lineColor': '#06b6d4', 'secondaryColor': '#ecfeff', 'tertiaryColor': '#f0fdfa'}}}%%
+erDiagram
+    USERS {
+        uuid id PK "UUID v4"
+        varchar snils UK "СНИЛС (11 цифр)"
+        varchar first_name "Имя"
+        varchar last_name "Фамилия"
+        varchar middle_name "Отчество"
+        date birth_date "Дата рождения"
+        varchar phone "Телефон"
+        varchar email "Email"
+        text public_key "ECDH публичный ключ"
+        varchar esia_oid "ЕСИА OID"
+        timestamp created_at "Создан"
+        timestamp updated_at "Обновлён"
+    }
+
+    DEVICES {
+        uuid id PK "UUID v4"
+        uuid user_id FK "Владелец"
+        varchar type "Тип: corset/orthosis/prosthesis"
+        varchar serial_number UK "Серийный номер"
+        varchar model "Модель"
+        varchar manufacturer "Производитель"
+        date manufacture_date "Дата изготовления"
+        date warranty_until "Гарантия до"
+        varchar status "Статус: active/repair/archived"
+        jsonb metadata "Доп. данные"
+        timestamp created_at "Создан"
+    }
+
+    CHATS {
+        uuid id PK "UUID v4"
+        uuid patient_id FK "Пациент"
+        uuid doctor_id FK "Врач (nullable)"
+        varchar type "Тип: doctor/ai"
+        boolean is_e2ee "E2EE включено"
+        timestamp last_message_at "Последнее сообщение"
+        timestamp created_at "Создан"
+    }
+
+    MESSAGES {
+        uuid id PK "UUID v4"
+        uuid chat_id FK "Чат"
+        uuid sender_id FK "Отправитель"
+        text ciphertext "Зашифрованный текст"
+        varchar iv "Вектор инициализации"
+        varchar auth_tag "GCM auth tag"
+        varchar sender_type "patient/doctor/ai"
+        boolean is_read "Прочитано"
+        timestamp created_at "Создан"
+    }
+
+    DOCUMENTS {
+        uuid id PK "UUID v4"
+        uuid user_id FK "Владелец"
+        varchar type "Тип: ipr/certificate/contract/sfr"
+        varchar title "Название"
+        varchar file_path "Путь к файлу"
+        varchar mime_type "MIME тип"
+        integer file_size "Размер (байт)"
+        date valid_until "Действителен до"
+        timestamp created_at "Создан"
+    }
+
+    APPOINTMENTS {
+        uuid id PK "UUID v4"
+        uuid user_id FK "Пациент"
+        uuid doctor_id FK "Врач"
+        timestamp scheduled_at "Дата/время"
+        varchar type "Тип: consultation/fitting/checkup"
+        varchar status "Статус: scheduled/completed/cancelled"
+        text notes "Заметки"
+        timestamp created_at "Создан"
+    }
+
+    TASKS {
+        uuid id PK "UUID v4"
+        uuid user_id FK "Пациент"
+        varchar title "Название"
+        text description "Описание"
+        varchar type "Тип: exercise/measurement/photo"
+        varchar frequency "Частота: daily/weekly"
+        time scheduled_time "Время выполнения"
+        boolean is_completed "Выполнено"
+        timestamp completed_at "Когда выполнено"
+        timestamp created_at "Создан"
+    }
+
+    SESSIONS {
+        varchar id PK "Session ID"
+        uuid user_id FK "Пользователь"
+        text data "Данные сессии (JSON)"
+        timestamp expires_at "Истекает"
+        timestamp created_at "Создан"
+    }
+
+    USERS ||--o{ DEVICES : "имеет"
+    USERS ||--o{ CHATS : "участвует"
+    USERS ||--o{ DOCUMENTS : "имеет"
+    USERS ||--o{ APPOINTMENTS : "записан"
+    USERS ||--o{ TASKS : "выполняет"
+    USERS ||--o{ SESSIONS : "авторизован"
+    CHATS ||--o{ MESSAGES : "содержит"

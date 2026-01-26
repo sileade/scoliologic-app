@@ -1,0 +1,108 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4f46e5', 'primaryTextColor': '#fff', 'primaryBorderColor': '#4338ca', 'lineColor': '#6366f1', 'secondaryColor': '#f0f9ff', 'tertiaryColor': '#f8fafc'}}}%%
+flowchart TB
+    subgraph Client["🖥️ КЛИЕНТ (Browser/Mobile)"]
+        direction TB
+        UI["React 18 + TypeScript"]
+        TW["TailwindCSS"]
+        TRPC_C["tRPC Client"]
+        RQ["React Query"]
+        E2E_C["E2EE Crypto<br/>(ECDH + AES-256-GCM)"]
+        IDB["IndexedDB<br/>(Offline Storage)"]
+    end
+
+    subgraph Server["⚙️ СЕРВЕР (Node.js 22)"]
+        direction TB
+        EXPRESS["Express.js"]
+        TRPC_S["tRPC Router"]
+        
+        subgraph Auth["🔐 Аутентификация"]
+            ESIA["ЕСИА OAuth 2.0<br/>(RSA-SHA256)"]
+            SESSION["Session Manager<br/>(Redis)"]
+        end
+        
+        subgraph Messenger["💬 Мессенджер"]
+            MSG_SVC["Message Service"]
+            E2E_S["E2EE Key Exchange"]
+            AI_SVC["AI Service<br/>(Ollama)"]
+        end
+        
+        subgraph MIS["🏥 МИС Интеграция"]
+            MIS_API["МИС API Client"]
+            SYNC["Sync Service"]
+        end
+        
+        ORM["Drizzle ORM"]
+    end
+
+    subgraph Data["💾 ХРАНИЛИЩЕ"]
+        direction LR
+        PG[("PostgreSQL 16<br/>Основная БД")]
+        REDIS[("Redis 7.4<br/>Кэш + Сессии")]
+        OLLAMA["Ollama<br/>llama3.2:3b"]
+    end
+
+    subgraph External["🌐 ВНЕШНИЕ СЕРВИСЫ"]
+        direction LR
+        GOSUSLUGI["Госуслуги<br/>(ЕСИА)"]
+        MIS_EXT["МИС Клиники"]
+    end
+
+    subgraph Deploy["🚀 ДЕПЛОЙ"]
+        direction TB
+        DOCKER["Docker Compose"]
+        NGINX["Nginx<br/>(Reverse Proxy)"]
+        GITOPS["GitOps Pull-Agent"]
+    end
+
+    %% Client connections
+    UI --> TW
+    UI --> TRPC_C
+    TRPC_C --> RQ
+    UI --> E2E_C
+    UI --> IDB
+
+    %% Client to Server
+    TRPC_C -->|"HTTPS/WSS"| NGINX
+    NGINX --> EXPRESS
+    EXPRESS --> TRPC_S
+
+    %% Server internal
+    TRPC_S --> Auth
+    TRPC_S --> Messenger
+    TRPC_S --> MIS
+    TRPC_S --> ORM
+
+    %% Auth flow
+    ESIA -->|"OAuth 2.0"| GOSUSLUGI
+    SESSION --> REDIS
+
+    %% Messenger flow
+    MSG_SVC --> E2E_S
+    MSG_SVC --> AI_SVC
+    AI_SVC --> OLLAMA
+
+    %% MIS flow
+    MIS_API -->|"REST API"| MIS_EXT
+    SYNC --> MIS_API
+
+    %% Data connections
+    ORM --> PG
+    SESSION --> REDIS
+    MSG_SVC --> PG
+
+    %% Deploy
+    DOCKER --> Server
+    DOCKER --> Data
+    GITOPS -->|"Auto-deploy"| DOCKER
+
+    classDef client fill:#dbeafe,stroke:#3b82f6,stroke-width:2px
+    classDef server fill:#fef3c7,stroke:#f59e0b,stroke-width:2px
+    classDef data fill:#d1fae5,stroke:#10b981,stroke-width:2px
+    classDef external fill:#fce7f3,stroke:#ec4899,stroke-width:2px
+    classDef deploy fill:#e0e7ff,stroke:#6366f1,stroke-width:2px
+
+    class Client client
+    class Server server
+    class Data data
+    class External external
+    class Deploy deploy

@@ -1,0 +1,92 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#059669', 'primaryTextColor': '#fff', 'primaryBorderColor': '#047857', 'lineColor': '#10b981', 'secondaryColor': '#ecfdf5', 'tertiaryColor': '#f0fdf4'}}}%%
+flowchart TB
+    subgraph Internet["🌐 ИНТЕРНЕТ"]
+        USER["👤 Пользователь<br/>(Browser/Mobile)"]
+        GOSUSLUGI["🏛️ Госуслуги<br/>(ЕСИА)"]
+        MIS_EXT["🏥 МИС Клиники"]
+    end
+
+    subgraph Server["🖥️ СЕРВЕР (Debian 13 / Ubuntu 22.04)"]
+        subgraph Docker["🐳 Docker Compose"]
+            direction TB
+            
+            subgraph Frontend["Frontend Layer"]
+                NGINX["📦 nginx:alpine<br/>:80, :443<br/>SSL Termination"]
+            end
+            
+            subgraph Backend["Backend Layer"]
+                APP["📦 scoliologic-app<br/>:3000<br/>Node.js 22"]
+            end
+            
+            subgraph Data["Data Layer"]
+                PG["📦 postgres:16<br/>:5432<br/>Основная БД"]
+                REDIS["📦 redis:7.4<br/>:6379<br/>Кэш + Сессии"]
+            end
+            
+            subgraph AI["AI Layer"]
+                OLLAMA["📦 ollama:latest<br/>:11434<br/>llama3.2:3b"]
+            end
+            
+            subgraph GitOps["GitOps Layer"]
+                AGENT["📦 pull-agent<br/>Python 3.11<br/>Auto-deploy"]
+            end
+        end
+        
+        subgraph Volumes["💾 Volumes"]
+            VOL_PG["postgres_data"]
+            VOL_REDIS["redis_data"]
+            VOL_OLLAMA["ollama_models"]
+            VOL_SSL["ssl_certs"]
+        end
+        
+        subgraph Network["🔗 Docker Network"]
+            NET["scoliologic-network<br/>(bridge)"]
+        end
+    end
+
+    subgraph GitHub["📂 GitHub"]
+        REPO["sileade/scoliologic-app<br/>main branch"]
+    end
+
+    %% User flow
+    USER -->|"HTTPS :443"| NGINX
+    NGINX -->|"HTTP :3000"| APP
+
+    %% External services
+    APP -->|"OAuth 2.0"| GOSUSLUGI
+    APP -->|"REST API"| MIS_EXT
+
+    %% Internal connections
+    APP -->|":5432"| PG
+    APP -->|":6379"| REDIS
+    APP -->|":11434"| OLLAMA
+
+    %% GitOps
+    AGENT -->|"git pull"| REPO
+    AGENT -->|"docker-compose"| APP
+
+    %% Volumes
+    PG --- VOL_PG
+    REDIS --- VOL_REDIS
+    OLLAMA --- VOL_OLLAMA
+    NGINX --- VOL_SSL
+
+    %% Network
+    NGINX --- NET
+    APP --- NET
+    PG --- NET
+    REDIS --- NET
+    OLLAMA --- NET
+    AGENT --- NET
+
+    classDef internet fill:#fef3c7,stroke:#f59e0b,stroke-width:2px
+    classDef docker fill:#dbeafe,stroke:#3b82f6,stroke-width:2px
+    classDef volume fill:#d1fae5,stroke:#10b981,stroke-width:2px
+    classDef network fill:#fce7f3,stroke:#ec4899,stroke-width:2px
+    classDef github fill:#e0e7ff,stroke:#6366f1,stroke-width:2px
+
+    class Internet internet
+    class Docker docker
+    class Volumes volume
+    class Network network
+    class GitHub github

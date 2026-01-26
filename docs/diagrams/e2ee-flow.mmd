@@ -1,0 +1,56 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#7c3aed', 'primaryTextColor': '#fff', 'primaryBorderColor': '#6d28d9', 'lineColor': '#8b5cf6', 'secondaryColor': '#f5f3ff', 'tertiaryColor': '#faf5ff'}}}%%
+sequenceDiagram
+    autonumber
+    participant P as 👤 Пациент
+    participant S as ⚙️ Сервер
+    participant D as 👨‍⚕️ Врач
+    participant AI as 🤖 AI-ассистент
+
+    Note over P,D: 🔐 ИНИЦИАЛИЗАЦИЯ E2EE
+
+    rect rgb(240, 253, 244)
+        P->>P: Генерация ECDH ключей<br/>(P-256 curve)
+        P->>S: Отправка публичного ключа
+        S->>S: Сохранение в БД
+        D->>D: Генерация ECDH ключей<br/>(P-256 curve)
+        D->>S: Отправка публичного ключа
+        S->>S: Сохранение в БД
+    end
+
+    Note over P,D: 🔑 ОБМЕН КЛЮЧАМИ
+
+    rect rgb(254, 243, 199)
+        P->>S: Запрос публичного ключа врача
+        S-->>P: Публичный ключ врача
+        P->>P: ECDH: derive shared secret
+        P->>P: HKDF: derive AES-256 key
+        
+        D->>S: Запрос публичного ключа пациента
+        S-->>D: Публичный ключ пациента
+        D->>D: ECDH: derive shared secret
+        D->>D: HKDF: derive AES-256 key
+    end
+
+    Note over P,D: ✉️ ОТПРАВКА СООБЩЕНИЯ
+
+    rect rgb(219, 234, 254)
+        P->>P: AES-256-GCM encrypt(message)
+        P->>S: {ciphertext, iv, tag}
+        S->>S: Сохранение зашифрованного<br/>(plainText недоступен!)
+        S->>D: Push notification
+        D->>S: Запрос сообщения
+        S-->>D: {ciphertext, iv, tag}
+        D->>D: AES-256-GCM decrypt(ciphertext)
+    end
+
+    Note over P,AI: 🤖 AI-АССИСТЕНТ (ИЗОЛИРОВАН)
+
+    rect rgb(252, 231, 243)
+        P->>P: Отдельный plainText для AI
+        P->>S: {aiContext: plainText}
+        S->>AI: Запрос к Ollama
+        AI-->>S: AI ответ
+        S->>P: AI сообщение<br/>(не шифруется)
+    end
+
+    Note over P,D: ⚠️ СЕРВЕР НЕ ИМЕЕТ ДОСТУПА К PLAINTEXT

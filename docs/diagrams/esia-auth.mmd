@@ -1,0 +1,59 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#dc2626', 'primaryTextColor': '#fff', 'primaryBorderColor': '#b91c1c', 'lineColor': '#ef4444', 'secondaryColor': '#fef2f2', 'tertiaryColor': '#fff1f2'}}}%%
+sequenceDiagram
+    autonumber
+    participant U as 👤 Пользователь
+    participant A as 📱 Приложение
+    participant S as ⚙️ Сервер
+    participant R as 🔴 Redis
+    participant E as 🏛️ ЕСИА (Госуслуги)
+    participant DB as 💾 PostgreSQL
+
+    Note over U,E: 🔐 АВТОРИЗАЦИЯ ЧЕРЕЗ ГОСУСЛУГИ
+
+    rect rgb(254, 242, 242)
+        U->>A: Нажатие "Войти через Госуслуги"
+        A->>S: GET /api/auth/esia/login
+        S->>S: Генерация state (UUID)
+        S->>S: Генерация timestamp
+        S->>S: RSA-SHA256 подпись<br/>(client_id + state + timestamp)
+        S->>R: Сохранение state (TTL: 10 мин)
+        S-->>A: Redirect URL → ЕСИА
+        A->>U: Редирект на Госуслуги
+    end
+
+    rect rgb(254, 249, 195)
+        U->>E: Ввод логина/пароля
+        E->>E: Проверка учётных данных
+        E->>E: 2FA (если включено)
+        E-->>U: Подтверждение согласия
+        U->>E: Согласие на передачу данных
+        E-->>A: Redirect с code + state
+    end
+
+    rect rgb(220, 252, 231)
+        A->>S: GET /api/auth/esia/callback<br/>?code=xxx&state=yyy
+        S->>R: Проверка state
+        R-->>S: state valid ✓
+        S->>R: Удаление state
+        S->>S: RSA-SHA256 подпись запроса токена
+        S->>E: POST /token<br/>{code, client_id, signature}
+        E-->>S: {access_token, refresh_token}
+        S->>E: GET /userinfo<br/>Authorization: Bearer token
+        E-->>S: {snils, firstName, lastName, ...}
+    end
+
+    rect rgb(219, 234, 254)
+        S->>DB: Поиск пользователя по СНИЛС
+        alt Пользователь существует
+            DB-->>S: User found
+            S->>DB: Обновление данных
+        else Новый пользователь
+            DB-->>S: Not found
+            S->>DB: Создание пользователя
+        end
+        S->>R: Создание сессии (TTL: 24h)
+        S-->>A: Set-Cookie: session_id
+        A->>U: Редирект на Dashboard
+    end
+
+    Note over U,E: ✅ АВТОРИЗАЦИЯ ЗАВЕРШЕНА

@@ -18,11 +18,9 @@
 - [О проекте](#о-проекте)
 - [Возможности](#возможности)
 - [Скриншоты](#-скриншоты)
+- [Архитектура и диаграммы](#-архитектура-и-диаграммы)
 - [Быстрый старт](#-быстрый-старт)
 - [Установка](#-установка)
-- [Архитектура](#-архитектура)
-- [GitOps автодеплой](#-gitops-автодеплой)
-- [API документация](#-api-документация)
 - [Разработка](#-разработка)
 
 ---
@@ -51,22 +49,6 @@ Scoliologic Patient App — это современное веб-приложе�
 | **Документы** | ИПР, справки, договоры, документы СФР | ✅ Готово |
 | **GitOps автодеплой** | Pull-агент для автоматического обновления | ✅ Готово |
 
-### 🤖 AI-ассистент
-
-AI-ассистент **интегрирован во все чаты с врачами**:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    ЛОГИКА AI-АССИСТЕНТА                         │
-├─────────────────────────────────────────────────────────────────┤
-│  1. Пациент отправляет сообщение                               │
-│  2. AI мониторит все сообщения в чате                          │
-│  3. AI отвечает пока врач недоступен                           │
-│  4. Врач отвечает → AI уходит в фон на 1.5 часа               │
-│  5. Если врач не отвечает 1.5 часа → AI возвращается          │
-└─────────────────────────────────────────────────────────────────┘
-```
-
 ---
 
 ## 🖼️ Скриншоты
@@ -77,6 +59,45 @@ AI-ассистент **интегрирован во все чаты с вра�
 
 ---
 
+## 🏗️ Архитектура и диаграммы
+
+<details>
+<summary>Системная архитектура</summary>
+
+![System Architecture](docs/diagrams/architecture.png)
+
+</details>
+
+<details>
+<summary>Схема развертывания (Deployment)</summary>
+
+![Deployment Diagram](docs/diagrams/deployment.png)
+
+</details>
+
+<details>
+<summary>Схема E2EE шифрования</summary>
+
+![E2EE Flow](docs/diagrams/e2ee-flow.png)
+
+</details>
+
+<details>
+<summary>Схема аутентификации (ЕСИА)</summary>
+
+![ESIA Authentication Flow](docs/diagrams/esia-auth.png)
+
+</details>
+
+<details>
+<summary>Схема базы данных</summary>
+
+![Database Schema](docs/diagrams/database-schema.png)
+
+</details>
+
+---
+
 ## 🚀 Быстрый старт
 
 ### Автоматическая установка (рекомендуется)
@@ -84,22 +105,6 @@ AI-ассистент **интегрирован во все чаты с вра�
 ```bash
 # Одной командой на Debian/Ubuntu
 curl -fsSL https://raw.githubusercontent.com/sileade/scoliologic-app/main/install.sh | sudo bash
-```
-
-### С дополнительными опциями
-
-```bash
-# С Traefik вместо Nginx
-sudo ./install.sh --with-traefik
-
-# С мониторингом (Prometheus + Grafana)
-sudo ./install.sh --with-monitoring
-
-# С поддержкой GPU для Ollama
-sudo ./install.sh --with-gpu
-
-# Все опции
-sudo ./install.sh --with-traefik --with-monitoring --with-gpu
 ```
 
 ---
@@ -115,222 +120,20 @@ sudo ./install.sh --with-traefik --with-monitoring --with-gpu
 | **Диск** | 10 GB | 20 GB |
 | **CPU** | 2 cores | 4 cores |
 
-### Docker Compose (ручная установка)
+### Ручная установка
 
 ```bash
 # Клонирование репозитория
 git clone https://github.com/sileade/scoliologic-app.git
 cd scoliologic-app
 
-# Копирование конфигурации
+# Копирование и настройка .env
 cp docs/env-template.txt .env
-nano .env  # Заполните параметры
+nano .env
 
 # Запуск
 docker-compose up -d
-
-# Проверка статуса
-docker-compose ps
-docker-compose logs -f app
 ```
-
-### Конфигурация .env
-
-```env
-# База данных PostgreSQL
-POSTGRES_USER=scoliologic
-POSTGRES_PASSWORD=<сгенерированный_пароль>
-POSTGRES_DB=scoliologic_db
-DATABASE_URL=postgresql://scoliologic:<пароль>@postgres:5432/scoliologic_db
-
-# ЕСИА (Госуслуги) - ОБЯЗАТЕЛЬНО
-ESIA_CLIENT_ID=<ваш_client_id>
-ESIA_CLIENT_SECRET=<ваш_client_secret>
-ESIA_REDIRECT_URI=https://app.scoliologic.ru/api/auth/esia/callback
-
-# МИС интеграция - ОБЯЗАТЕЛЬНО
-MIS_API_URL=https://mis.scoliologic.ru/api
-MIS_API_KEY=<ваш_api_key>
-
-# GitOps (опционально)
-GIT_TOKEN=<github_token>
-AUTO_DEPLOY=true
-```
-
----
-
-## 🏗️ Архитектура
-
-### Технологический стек
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         FRONTEND                                │
-├─────────────────────────────────────────────────────────────────┤
-│  React 18 + TypeScript + Vite + TailwindCSS + Wouter           │
-│  tRPC Client + React Query                                      │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         BACKEND                                 │
-├─────────────────────────────────────────────────────────────────┤
-│  Node.js 22 + Express + tRPC + Drizzle ORM                     │
-│  ЕСИА OAuth + МИС API + E2EE Messenger                         │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
-┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│   PostgreSQL    │ │     Redis       │ │     Ollama      │
-│       16        │ │     7.4         │ │   llama3.2:3b   │
-└─────────────────┘ └─────────────────┘ └─────────────────┘
-```
-
-### Docker Compose сервисы
-
-| Сервис | Порт | Описание |
-|---|---|---|
-| **app** | 3000 | Основное приложение |
-| **postgres** | 5432 | База данных |
-| **redis** | 6379 | Кэш и сессии |
-| **ollama** | 11434 | AI модель |
-| **pull-agent** | - | GitOps автодеплой |
-| **nginx** | 80, 443 | Reverse proxy |
-
----
-
-## 🔄 GitOps автодеплой
-
-### Pull-агент
-
-Автоматическое обновление приложения при новых коммитах:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      PULL-AGENT WORKFLOW                        │
-├─────────────────────────────────────────────────────────────────┤
-│  1. Проверка репозитория каждые 5 минут                        │
-│  2. Обнаружен новый коммит?                                    │
-│  3. git pull origin main                                       │
-│  4. docker-compose build app                                   │
-│  5. Health check старого контейнера                            │
-│  6. docker-compose up -d app (rolling update)                  │
-│  7. Health check нового контейнера                             │
-│  8. При ошибке → автоматический rollback                       │
-│  9. Уведомление в Telegram/Slack                               │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Конфигурация Pull-агента
-
-```env
-# GitOps настройки
-GIT_REPO_URL=https://github.com/sileade/scoliologic-app.git
-GIT_BRANCH=main
-GIT_TOKEN=ghp_xxxxxxxxxxxx  # GitHub Personal Access Token
-CHECK_INTERVAL=300          # Интервал проверки (секунды)
-AUTO_DEPLOY=true            # Автоматический деплой
-ROLLBACK_ON_FAILURE=true    # Откат при ошибке
-
-# Уведомления
-TELEGRAM_BOT_TOKEN=<bot_token>
-TELEGRAM_CHAT_ID=<chat_id>
-SLACK_WEBHOOK_URL=<webhook_url>
-```
-
-### Ручное управление
-
-```bash
-# Принудительное обновление
-docker exec scoliologic-pull-agent python -c "from pull_agent import PullAgent; PullAgent().check_and_deploy()"
-
-# Просмотр логов
-docker-compose logs -f pull-agent
-
-# Откат к предыдущей версии
-docker exec scoliologic-pull-agent python -c "from pull_agent import PullAgent; PullAgent().rollback()"
-```
-
----
-
-## 📡 API документация
-
-### Health Check Endpoints
-
-```bash
-# Полный статус
-GET /api/health
-{
-  "status": "healthy",
-  "timestamp": "2026-01-16T01:00:00.000Z",
-  "version": "1.0.0",
-  "uptime": 3600,
-  "checks": {
-    "database": { "status": "up", "latency": 5 },
-    "redis": { "status": "up", "latency": 2 },
-    "ollama": { "status": "up", "latency": 50 }
-  }
-}
-
-# Liveness probe (для Kubernetes)
-GET /api/health/live
-{ "status": "alive" }
-
-# Readiness probe
-GET /api/health/ready
-{ "status": "ready" }
-
-# Prometheus метрики
-GET /api/metrics
-```
-
-### tRPC Endpoints
-
-```typescript
-// ЕСИА
-GET  /api/auth/esia/login      // Начало авторизации
-GET  /api/auth/esia/callback   // Callback от Госуслуг
-
-// МИС
-trpc.mis.getPatient()          // Данные пациента
-trpc.mis.getDevices()          // Список изделий
-trpc.mis.sync()                // Синхронизация с МИС
-
-// Мессенджер
-trpc.messenger.getChats()      // Список чатов
-trpc.messenger.sendMessage()   // Отправка сообщения
-trpc.messenger.exchangeKeys()  // Обмен ключами E2EE
-
-// AI
-trpc.ai.chat()                 // Запрос к AI
-trpc.ai.health()               // Статус Ollama
-```
-
----
-
-## 📱 Mobile-First Design
-
-Приложение **оптимизировано для мобильных устройств** с поддержкой жестов:
-
-### Управление жестами
-
-| Жест | Действие | Где работает |
-|---|---|---|
-| **Свайп вниз** | Pull-to-refresh (обновление данных) | Все списки |
-| **Свайп влево** | Удалить / Архивировать | Документы, Чаты |
-| **Свайп вправо** | Скачать / Отметить прочитанным | Документы, Чаты |
-| **Long press** | Контекстное меню | Карточки, Сообщения |
-| **Pinch** | Масштабирование | Документы, Изображения |
-| **Double tap** | Быстрое действие | Сообщения (лайк) |
-
-### Touch-оптимизация
-
-- **Минимальный размер кнопок:** 48x48px (Apple HIG)
-- **Отступы между элементами:** 12px минимум
-- **Haptic feedback:** Вибрация при свайпах
-- **Safe areas:** Поддержка notch и home indicator
-- **Overscroll:** Резиновый эффект при прокрутке
 
 ---
 
